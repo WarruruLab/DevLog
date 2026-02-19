@@ -35,7 +35,7 @@ llm:
 # 2. DevTalk 연동 설정 (데이터 수집용 Client)
 devtalk:
   client:
-    base-url: http://localhost:8080/api
+    base-url: ${DEVTALK_BASE_URL}
     connect-timeout-ms: 3000
     read-timeout-ms: 10000
     # api-key: ${DEVTALK_INTERNAL_KEY} # 추후 보안 적용 시 사용
