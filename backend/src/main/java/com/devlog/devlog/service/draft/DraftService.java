@@ -31,7 +31,7 @@ public class DraftService {
     }
 
     @Transactional
-    public void createDraft(String sessionId) {
+    public Long createDraft(String sessionId) {
         // 1. 분석된 블록 조회 (sessionId는 String/UUID)
         List<SessionBlock> blocks = blockRepository.findAllBySessionId(sessionId);
         if (blocks.isEmpty()) {
@@ -63,7 +63,7 @@ public class DraftService {
 
         // 5. 초안 저장
         Draft draft = new Draft(null, sessionId, content, LocalDateTime.now());
-        draftRepository.save(draft);
+        return draftRepository.save(draft);
     }
 
     private String formatBlocksForAi(List<SessionBlock> blocks) {
