@@ -5,7 +5,7 @@ import java.util.Optional;
 
 public interface LogicalSessionRepository {
     // 세션 저장
-    void save(LogicalSession session);
+    String save(LogicalSession session);
     // 세션 조회
     Optional<LogicalSession> findBySessionId(String sessionId);
     // 모든 세션 조회

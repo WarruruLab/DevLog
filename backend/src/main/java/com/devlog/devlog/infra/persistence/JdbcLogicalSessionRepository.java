@@ -23,10 +23,11 @@ public class JdbcLogicalSessionRepository implements LogicalSessionRepository {
 
     // 1. 세션 저장
     @Override
-    public void save(LogicalSession session) {
+    public String save(LogicalSession session) {
         // 중복 저장 시 에러를 방지하기 위해 INSERT IGNORE 사용을 추천합니다.
         String sql = "INSERT IGNORE INTO logical_session (session_id) VALUES (?)";
         jdbcTemplate.update(sql, session.getSessionId());
+        return session.getSessionId();
     }
 
     // 2. 특정 세션 조회
