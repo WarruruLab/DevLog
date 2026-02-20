@@ -1,10 +1,12 @@
 package com.devlog.devlog.api.controller.sync;
 
+import com.devlog.devlog.api.dto.requet.SyncRequest;
 import com.devlog.devlog.api.dto.response.InternalMessagePageResponse;
 import com.devlog.devlog.service.sync.SyncService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,9 +19,9 @@ public class SyncController {
         this.syncService = syncService;
     }
 
-    @PostMapping("/{sessionId}")
-    public ResponseEntity<Void> getSync(@PathVariable String sessionId){
-        syncService.sync(sessionId);
-        return ResponseEntity.noContent().build();
+    @PostMapping
+    public ResponseEntity<String> sync(@RequestBody SyncRequest request) {
+        String sessionId = syncService.sync(request);
+        return ResponseEntity.ok(sessionId);
     }
 }

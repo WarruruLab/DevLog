@@ -1,5 +1,6 @@
 package com.devlog.devlog.service.sync;
 
+import com.devlog.devlog.api.dto.requet.SyncRequest;
 import com.devlog.devlog.api.dto.response.InternalMessagePageResponse;
 import com.devlog.devlog.domain.session.LogicalSession;
 import com.devlog.devlog.domain.session.LogicalSessionRepository;
@@ -25,9 +26,10 @@ public class SyncService {
     }
 
     @Transactional
-    public void sync(String sessionId) {
+    public String sync(SyncRequest request) {
+        String sessionId = request.sessionId();
         // 1. 세션 존재 여부 확인 및 저장
-        sessionRepository.save(new LogicalSession(sessionId));
+        String savedSessionId = sessionRepository.save(new LogicalSession(sessionId));
 
         // 2. 마지막 동기화 시점 확인
         // 만약 처음이라면 null을 반환하여
@@ -51,5 +53,6 @@ public class SyncService {
 
             messageRepository.saveAll(newMessages);
         }
+        return savedSessionId;
     }
 }
