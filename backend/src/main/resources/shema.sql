@@ -1,34 +1,40 @@
--- synced_message: DevTalk 원본 데이터
-CREATE TABLE synced_message (
-                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                session_id VARCHAR(255) NOT NULL,
-                                role VARCHAR(50) NOT NULL,
-                                content TEXT NOT NULL,
-                                timestamp DATETIME NOT NULL,
-                                synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                INDEX idx_session_timestamp (session_id, timestamp)
+-- 1. 기존 테이블 삭제
+DROP TABLE IF EXISTS draft;
+DROP TABLE IF EXISTS session_block;
+DROP TABLE IF EXISTS synced_message;
+DROP TABLE IF EXISTS logical_session;
+
+-- 2. logical_session (세션 관리)
+CREATE TABLE logical_session (
+                                 session_id VARCHAR(255) PRIMARY KEY,
+                                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- session_block: AI 분석 결과
+-- 3. synced_message (도메인의 SyncedMessage와 일치)
+CREATE TABLE synced_message (
+                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                message_id VARCHAR(255) NOT NULL,
+                                session_id VARCHAR(255) NOT NULL,
+                                content TEXT NOT NULL,
+                                created_at DATETIME NOT NULL,
+                                INDEX idx_session (session_id)
+);
+
+-- 4. session_block (도메인의 SessionBlock 및 data.sql과 일치)
 CREATE TABLE session_block (
-                               id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                               block_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                                session_id VARCHAR(255) NOT NULL,
-                               block_type VARCHAR(100) NOT NULL,
-                               topic VARCHAR(255),
-                               json_content JSON NOT NULL,
-                               message_ids TEXT,
+                               title VARCHAR(255) NOT NULL,       -- data.sql에서 찾는 컬럼
+                               content_json JSON NOT NULL,        -- data.sql에서 찾는 컬럼
                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                                INDEX idx_session (session_id)
 );
 
--- draft: 생성된 초안
+-- 5. draft (도메인의 Draft와 일치)
 CREATE TABLE draft (
                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
                        session_id VARCHAR(255) NOT NULL,
-                       title VARCHAR(500),
                        content TEXT NOT NULL,
-                       selected_block_ids TEXT,
                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       INDEX idx_session (session_id)
+                       UNIQUE INDEX uidx_session (session_id) -- ON DUPLICATE KEY UPDATE를 위해 필요
 );
