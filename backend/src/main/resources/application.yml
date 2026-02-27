@@ -1,0 +1,46 @@
+server:
+  port: 8081 # DevTalk(8080)과 포트 충돌 방지
+
+spring:
+  application:
+    name: devlog
+  datasource:
+    # 환경변수가 없으면 기본값(로컬 devlog DB) 사용
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/devlog?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${MYSQL_USERNAME:root} # 본인 로컬 DB 계정
+    password: ${MYSQL_PASSWORD}      # 본인 로컬 DB 비번
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # 서버 시작 시 schema.sql 자동 실행
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+
+# 1. AI 설정 (DevTalk 구조 차용)
+llm:
+  mode: gemini # or mock
+
+  mock:
+    always-fail: false
+
+  gemini:
+    base-url: https://generativelanguage.googleapis.com
+    # 분석 작업은 응답이 길어질 수 있으므로 타임아웃을 넉넉하게 설정
+    connect-timeout-ms: 3000
+    read-timeout-ms: 30000
+    api-key: ${GEMINI_API_KEY}
+    model: gemini-2.5-flash # 구조화 작업에 가성비 좋은 모델 추천
+
+# 2. DevTalk 연동 설정 (데이터 수집용 Client)
+devtalk:
+  client:
+    base-url: ${DEVTALK_BASE_URL}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 10000
+    # api-key: ${DEVTALK_INTERNAL_KEY} # 추후 보안 적용 시 사용
+
+# 3. DevLog 전용 설정
+devlog:
+  analysis:
+    chunk-size: 20 # 한 번에 분석할 메시지 개수 (긴 세션 처리용)
