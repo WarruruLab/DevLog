@@ -33,7 +33,7 @@ DevLog ──── REST ────▶ Gemini API
             저장된 블록 기반으로 블로그 초안 생성
 ```
 
-연관 레포: [개발톡(DevTalk)](#) · [MCP Server](#)
+연관 레포: [개발톡(DevTalk)](https://github.com/WarruruLab/DevTalk) · [MCP Server](https://github.com/WarruruLab/MCP)
 
 ---
 
