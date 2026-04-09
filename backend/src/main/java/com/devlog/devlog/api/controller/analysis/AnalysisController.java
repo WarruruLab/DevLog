@@ -1,5 +1,6 @@
 package com.devlog.devlog.api.controller.analysis;
 
+import com.devlog.devlog.api.dto.response.SessionBlockResponse;
 import com.devlog.devlog.service.analysis.AnalysisService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,10 +18,9 @@ public class AnalysisController {
         this.analysisService = analysisService;
     }
 
-    // 세션에 대해서 MCP 실행
     @PostMapping("/{sessionId}")
-    public ResponseEntity<Void> startAnalysis(@PathVariable String sessionId) {
-        analysisService.startAnalysis(sessionId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<SessionBlockResponse> startAnalysis(@PathVariable String sessionId) {
+        SessionBlockResponse response = analysisService.startAnalysis(sessionId);
+        return response != null ? ResponseEntity.ok(response) : ResponseEntity.noContent().build();
     }
 }
