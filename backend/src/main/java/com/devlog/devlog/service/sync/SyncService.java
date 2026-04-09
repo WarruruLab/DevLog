@@ -9,6 +9,7 @@ import com.devlog.devlog.domain.sync.SyncedMessageRepository;
 import com.devlog.devlog.infra.client.DevTalkClient;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +20,8 @@ public class SyncService {
     private final SyncedMessageRepository messageRepository;
     private final LogicalSessionRepository sessionRepository;
 
-    public SyncService(DevTalkClient devTalkClient, SyncedMessageRepository messageRepository, LogicalSessionRepository sessionRepository) {
+    public SyncService(DevTalkClient devTalkClient, SyncedMessageRepository messageRepository,
+        LogicalSessionRepository sessionRepository) {
         this.devTalkClient = devTalkClient;
         this.messageRepository = messageRepository;
         this.sessionRepository = sessionRepository;
@@ -28,31 +30,62 @@ public class SyncService {
     @Transactional
     public String sync(SyncRequest request) {
         String sessionId = request.sessionId();
-        // 1. 세션 존재 여부 확인 및 저장
-        String savedSessionId = sessionRepository.save(new LogicalSession(sessionId));
+        LogicalSession session = sessionRepository.findBySessionId(sessionId)
+            .orElseGet(() -> new LogicalSession(sessionId));
+        sessionRepository.saveOrUpdate(session);
+        sessionRepository.updateSyncStatus(sessionId, "RUNNING");
+        sessionRepository.updateSyncErrorMessage(sessionId, null);
+        sessionRepository.updateSessionStatus(sessionId, "SYNCING");
 
-        // 2. 마지막 동기화 시점 확인
-        // 만약 처음이라면 null을 반환하여
-        String cursor = messageRepository.findLastCreatedAtBySessionId(sessionId)
-            .map(LocalDateTime::toString)
-            .orElse(null);
+        try {
+            String cursor = messageRepository.findLastCreatedAtBySessionId(sessionId)
+                .map(LocalDateTime::toString)
+                .orElse(null);
 
-        // 3. DevTalk API 호출
-        InternalMessagePageResponse response = devTalkClient.fetchMessages(sessionId, cursor);
+            InternalMessagePageResponse response = devTalkClient.fetchMessages(sessionId, cursor);
 
-        // 4. 받아온 DTO를 도메인 엔티티(SyncedMessage)로 변환 후 Batch Insert
-        if (response != null && !response.messages().isEmpty()) {
-            List<SyncedMessage> newMessages = response.messages().stream()
-                .map(dto -> new SyncedMessage(
-                    dto.messageId(),
-                    sessionId,
-                    dto.content(),
-                    dto.createdAt()
-                ))
-                .toList();
+            if (response != null && !response.messages().isEmpty()) {
+                List<SyncedMessage> newMessages = response.messages().stream()
+                    .map(dto -> new SyncedMessage(
+                        dto.messageId(),
+                        sessionId,
+                        dto.content(),
+                        dto.role(),
+                        null,
+                        dto.createdAt(),
+                        "PENDING",
+                        null
+                    ))
+                    .toList();
+                messageRepository.saveAll(newMessages);
+            }
 
-            messageRepository.saveAll(newMessages);
+            long totalCount = messageRepository.countBySessionId(sessionId);
+            long structuredCount = messageRepository.countStructuredBySessionId(sessionId);
+            long unstructuredCount = messageRepository.countUnstructuredBySessionId(sessionId);
+            Optional<LocalDateTime> lastMessageAt = messageRepository.findLastCreatedAtBySessionId(sessionId);
+            sessionRepository.updateCounts(
+                sessionId,
+                (int) totalCount,
+                (int) totalCount,
+                (int) structuredCount,
+                (int) unstructuredCount,
+                session.getBlockCount()
+            );
+            sessionRepository.updateTimestamps(
+                sessionId,
+                lastMessageAt.orElse(session.getLastMessageAt()),
+                LocalDateTime.now(),
+                session.getLastAnalyzedAt()
+            );
+            sessionRepository.updateSyncStatus(sessionId, "DONE");
+            sessionRepository.updateSessionStatus(sessionId, "READY");
+            return sessionId;
+        } catch (RuntimeException e) {
+            sessionRepository.updateSyncStatus(sessionId, "FAILED");
+            sessionRepository.updateSyncErrorMessage(sessionId, e.getMessage());
+            sessionRepository.updateSessionStatus(sessionId, "FAILED");
+            throw e;
         }
-        return savedSessionId;
     }
 }

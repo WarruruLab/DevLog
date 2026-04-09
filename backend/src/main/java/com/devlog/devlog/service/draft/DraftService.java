@@ -1,16 +1,26 @@
 package com.devlog.devlog.service.draft;
 
+import com.devlog.devlog.api.dto.response.DraftResponse;
 import com.devlog.devlog.domain.analysis.SessionBlock;
 import com.devlog.devlog.domain.analysis.SessionBlockRepository;
 import com.devlog.devlog.domain.draft.Draft;
+import com.devlog.devlog.domain.draft.DraftBlock;
+import com.devlog.devlog.domain.draft.DraftBlockRepository;
 import com.devlog.devlog.domain.draft.DraftRepository;
 import com.devlog.devlog.domain.llm.LlmMessage;
 import com.devlog.devlog.domain.llm.LlmOptions;
 import com.devlog.devlog.domain.llm.LlmRequest;
 import com.devlog.devlog.domain.llm.LlmRole;
+import com.devlog.devlog.domain.session.LogicalSession;
+import com.devlog.devlog.domain.session.LogicalSessionRepository;
 import com.devlog.devlog.service.llm.AiService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,56 +30,187 @@ public class DraftService {
 
     private final SessionBlockRepository blockRepository;
     private final DraftRepository draftRepository;
+    private final DraftBlockRepository draftBlockRepository;
+    private final LogicalSessionRepository sessionRepository;
     private final AiService aiService;
 
     public DraftService(SessionBlockRepository blockRepository,
         DraftRepository draftRepository,
+        DraftBlockRepository draftBlockRepository,
+        LogicalSessionRepository sessionRepository,
         AiService aiService) {
         this.blockRepository = blockRepository;
         this.draftRepository = draftRepository;
+        this.draftBlockRepository = draftBlockRepository;
+        this.sessionRepository = sessionRepository;
         this.aiService = aiService;
     }
 
     @Transactional
-    public Long createDraft(String sessionId) {
-        // 1. 분석된 블록 조회 (sessionId는 String/UUID)
-        List<SessionBlock> blocks = blockRepository.findAllBySessionId(sessionId);
-        if (blocks.isEmpty()) {
-            throw new RuntimeException("해당 세션에 분석된 블록이 없습니다. 세션 ID: " + sessionId);
+    public DraftResponse createDraft(String sessionId, List<Long> selectedBlockIds) {
+        LogicalSession session = sessionRepository.findBySessionId(sessionId)
+            .orElseThrow(() -> new RuntimeException("세션을 찾을 수 없다: " + sessionId));
+
+        List<Long> requestedBlockIds = selectedBlockIds == null ? List.of() : selectedBlockIds;
+        List<SessionBlock> selectedBlocks = orderedSelectedBlocks(sessionId, requestedBlockIds);
+        int versionNo = draftRepository.nextVersion(sessionId);
+        LocalDateTime now = LocalDateTime.now();
+        String title = defaultString(session.getTitle(), sessionId);
+
+        if (requestedBlockIds.isEmpty() || selectedBlocks.size() != requestedBlockIds.size()) {
+            String failureMessage = "선택한 블록이 없거나 일부 블록을 찾을 수 없다.";
+            Draft failedDraft = new Draft(
+                null,
+                sessionId,
+                versionNo,
+                "FAILED",
+                title,
+                null,
+                failureMessage,
+                now,
+                now
+            );
+            Long draftId = draftRepository.save(failedDraft);
+            return new DraftResponse(
+                draftId,
+                sessionId,
+                versionNo,
+                "FAILED",
+                title,
+                null,
+                requestedBlockIds,
+                now
+            );
         }
 
-        // 2. 컨텍스트 조립
-        String context = formatBlocksForAi(blocks);
-
-        // 3. 시스템 프롬프트 설정
         String systemPrompt = """
-            너는 숙련된 시니어 개발자이자 기술 블로그 에디터야.
-            제공된 JSON 형식의 개발 세션 분석 결과를 바탕으로 기술 블로그 포스팅 초안을 작성해줘.
-            
-            지시사항:
-            1. 각 블록의 트러블슈팅 과정과 기술적 결정 사항을 상세히 포함할 것.
-            2. 독자들이 인사이트를 얻을 수 있도록 전문적인 문체로 작성할 것.
-            3. 결과물은 반드시 Markdown 형식이어야 함.
-            4. 서론은 생략하고 바로 본론부터 시작할 것.
+            너는 개발로그 초안을 작성하는 도우미이다.
+            사용자가 선택한 블록만 입력으로 받으며, 결과는 Markdown 형식의 블로그 초안이어야 한다.
+            - 설명은 자연스럽고 간결하게 작성한다.
+            - 선택된 블록의 흐름을 유지한다.
+            - 불필요한 메타 설명은 줄인다.
             """;
 
-        // 4. AiService 호출
-        LlmRequest request = new LlmRequest(
-            systemPrompt,
-            List.of(new LlmMessage(LlmRole.USER, context)),
-            LlmOptions.defaults()
-        );
-        String content = aiService.ask(request);
+        String userPrompt = formatBlocksForAi(selectedBlocks);
 
-        // 5. 초안 저장
-        Draft draft = new Draft(null, sessionId, content, LocalDateTime.now());
-        return draftRepository.save(draft);
+        try {
+            String content = aiService.ask(
+                new LlmRequest(
+                    systemPrompt,
+                    List.of(new LlmMessage(LlmRole.USER, userPrompt)),
+                    LlmOptions.defaults()
+                )
+            );
+
+            Draft draft = new Draft(
+                null,
+                sessionId,
+                versionNo,
+                "COMPLETED",
+                title,
+                content,
+                systemPrompt + "\n\n" + userPrompt,
+                now,
+                now
+            );
+            Long draftId = draftRepository.save(draft);
+            draftBlockRepository.saveAll(buildDraftBlocks(draftId, requestedBlockIds));
+
+            return new DraftResponse(
+                draftId,
+                sessionId,
+                versionNo,
+                "COMPLETED",
+                title,
+                content,
+                requestedBlockIds,
+                now
+            );
+        } catch (Exception e) {
+            String failureMessage = safeMessage(e);
+            Draft failedDraft = new Draft(
+                null,
+                sessionId,
+                versionNo,
+                "FAILED",
+                title,
+                null,
+                failureMessage,
+                now,
+                now
+            );
+            Long draftId = draftRepository.save(failedDraft);
+            return new DraftResponse(
+                draftId,
+                sessionId,
+                versionNo,
+                "FAILED",
+                title,
+                null,
+                requestedBlockIds,
+                now
+            );
+        }
+    }
+
+    private List<SessionBlock> orderedSelectedBlocks(String sessionId, List<Long> selectedBlockIds) {
+        if (selectedBlockIds == null || selectedBlockIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<SessionBlock> blocks = blockRepository.findByIds(sessionId, selectedBlockIds);
+        Map<Long, SessionBlock> blockById = blocks.stream()
+            .filter(block -> block.getBlockId() != null)
+            .collect(Collectors.toMap(
+                SessionBlock::getBlockId,
+                block -> block,
+                (left, right) -> left,
+                LinkedHashMap::new
+            ));
+
+        List<SessionBlock> ordered = new ArrayList<>(selectedBlockIds.size());
+        for (Long blockId : selectedBlockIds) {
+            SessionBlock block = blockById.get(blockId);
+            if (block != null) {
+                ordered.add(block);
+            }
+        }
+        return ordered;
+    }
+
+    private List<DraftBlock> buildDraftBlocks(Long draftId, List<Long> selectedBlockIds) {
+        List<DraftBlock> draftBlocks = new ArrayList<>(selectedBlockIds.size());
+        for (int i = 0; i < selectedBlockIds.size(); i++) {
+            draftBlocks.add(new DraftBlock(
+                null,
+                draftId,
+                selectedBlockIds.get(i),
+                i + 1,
+                LocalDateTime.now()
+            ));
+        }
+        return draftBlocks;
     }
 
     private String formatBlocksForAi(List<SessionBlock> blocks) {
         return blocks.stream()
-            .map(block -> String.format("### %s\n```json\n%s\n```",
-                block.getTitle(), block.getContentJson()))
+            .sorted(Comparator.comparingInt(block -> block.getSequenceNo() != null ? block.getSequenceNo() : Integer.MAX_VALUE))
+            .map(block -> String.format(
+                "### %s\n- type: %s\n- summary: %s\n```json\n%s\n```",
+                defaultString(block.getTitle(), "Untitled"),
+                defaultString(block.getBlockType(), "PROBLEM"),
+                defaultString(block.getSummary(), ""),
+                defaultString(block.getContentJson(), "{}")
+            ))
             .collect(Collectors.joining("\n\n"));
+    }
+
+    private static String defaultString(String value, String fallback) {
+        return value != null ? value : fallback;
+    }
+
+    private static String safeMessage(Exception e) {
+        String message = e.getMessage();
+        return message != null ? message : e.getClass().getSimpleName();
     }
 }
