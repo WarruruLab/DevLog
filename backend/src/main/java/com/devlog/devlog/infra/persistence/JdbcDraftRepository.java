@@ -3,6 +3,7 @@ package com.devlog.devlog.infra.persistence;
 import com.devlog.devlog.domain.draft.Draft;
 import com.devlog.devlog.domain.draft.DraftRepository;
 import java.sql.PreparedStatement;
+import java.sql.Timestamp;
 import java.util.Optional;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,29 +25,52 @@ public class JdbcDraftRepository implements DraftRepository {
 
     @Override
     public Long save(Draft draft) {
-        // 1. SQL 문에 id = LAST_INSERT_ID(id)를 추가하여 업데이트 시에도 ID가 유지되도록 함
-        String sql = "INSERT INTO draft (session_id, content) VALUES (?, ?) " +
-            "ON DUPLICATE KEY UPDATE content = VALUES(content), id = LAST_INSERT_ID(id)";
+        String sql = """
+            INSERT INTO draft (
+                session_id, version_no, status, title, content_markdown,
+                generation_prompt, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """;
 
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+        int versionNo = draft.getVersionNo() != null ? draft.getVersionNo() : nextVersion(draft.getSessionId());
+        String status = defaultString(draft.getStatus(), "PENDING");
+        String title = defaultString(draft.getTitle(), draft.getSessionId());
+        String contentMarkdown = draft.getContentMarkdown() != null ? draft.getContentMarkdown() : draft.getContent();
+        Timestamp createdAt = draft.getCreatedAt() != null ? Timestamp.valueOf(draft.getCreatedAt()) : Timestamp.valueOf(java.time.LocalDateTime.now());
+        Timestamp updatedAt = draft.getUpdatedAt() != null ? Timestamp.valueOf(draft.getUpdatedAt()) : createdAt;
 
-        // 2. PreparedStatementCreator를 사용하여 자동 생성된 키를 받을 준비를 함
         jdbcTemplate.update(con -> {
-            // 두 번째 인자로 자동 생성되는 컬럼명("id")을 명시
-            PreparedStatement ps = con.prepareStatement(sql, new String[]{"id"});
+            PreparedStatement ps = con.prepareStatement(sql, new String[]{"draft_id"});
             ps.setString(1, draft.getSessionId());
-            ps.setString(2, draft.getContent());
+            ps.setInt(2, versionNo);
+            ps.setString(3, status);
+            ps.setString(4, title);
+            ps.setString(5, contentMarkdown);
+            ps.setString(6, draft.getGenerationPrompt());
+            ps.setTimestamp(7, createdAt);
+            ps.setTimestamp(8, updatedAt);
             return ps;
         }, keyHolder);
 
-        // 3. keyHolder에서 생성된(혹은 업데이트된) 키를 꺼내서 반환
         Number key = keyHolder.getKey();
-        return (key != null) ? key.longValue() : null;
+        return key != null ? key.longValue() : null;
     }
 
     @Override
     public Optional<Draft> findBySessionId(String sessionId) {
-        String sql = "SELECT * FROM draft WHERE session_id = ?";
+        return findLatestBySessionId(sessionId);
+    }
+
+    @Override
+    public Optional<Draft> findLatestBySessionId(String sessionId) {
+        String sql = """
+            SELECT *
+            FROM draft
+            WHERE session_id = ?
+            ORDER BY version_no DESC, draft_id DESC
+            LIMIT 1
+            """;
         try {
             Draft draft = jdbcTemplate.queryForObject(sql, draftRowMapper, sessionId);
             return Optional.ofNullable(draft);
@@ -55,10 +79,49 @@ public class JdbcDraftRepository implements DraftRepository {
         }
     }
 
+    @Override
+    public Optional<Draft> findByDraftId(Long draftId) {
+        String sql = "SELECT * FROM draft WHERE draft_id = ?";
+        try {
+            Draft draft = jdbcTemplate.queryForObject(sql, draftRowMapper, draftId);
+            return Optional.ofNullable(draft);
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public int nextVersion(String sessionId) {
+        Integer next = jdbcTemplate.queryForObject(
+            "SELECT COALESCE(MAX(version_no), 0) + 1 FROM draft WHERE session_id = ?",
+            Integer.class,
+            sessionId
+        );
+        return next != null ? next : 1;
+    }
+
+    @Override
+    public void deleteAllBySessionId(String sessionId) {
+        jdbcTemplate.update("DELETE FROM draft WHERE session_id = ?", sessionId);
+    }
+
     private final RowMapper<Draft> draftRowMapper = (rs, rowNum) -> new Draft(
-        rs.getLong("id"),
+        rs.getLong("draft_id"),
         rs.getString("session_id"),
-        rs.getString("content"),
-        rs.getTimestamp("created_at").toLocalDateTime()
+        rs.getInt("version_no"),
+        rs.getString("status"),
+        rs.getString("title"),
+        rs.getString("content_markdown"),
+        rs.getString("generation_prompt"),
+        toLocalDateTime(rs.getTimestamp("created_at")),
+        toLocalDateTime(rs.getTimestamp("updated_at"))
     );
+
+    private static String defaultString(String value, String fallback) {
+        return value != null ? value : fallback;
+    }
+
+    private static java.time.LocalDateTime toLocalDateTime(Timestamp timestamp) {
+        return timestamp != null ? timestamp.toLocalDateTime() : null;
+    }
 }
