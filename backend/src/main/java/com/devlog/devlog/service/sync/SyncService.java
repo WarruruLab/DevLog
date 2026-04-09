@@ -1,6 +1,6 @@
 package com.devlog.devlog.service.sync;
 
-import com.devlog.devlog.api.dto.requet.SyncRequest;
+import com.devlog.devlog.api.dto.request.SyncRequest;
 import com.devlog.devlog.api.dto.response.InternalMessagePageResponse;
 import com.devlog.devlog.domain.session.LogicalSession;
 import com.devlog.devlog.domain.session.LogicalSessionRepository;
