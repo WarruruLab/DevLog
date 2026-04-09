@@ -3,8 +3,13 @@ package com.devlog.devlog.domain.analysis;
 import java.util.List;
 
 public interface SessionBlockRepository {
-    // block 저장
     Long save(SessionBlock block);
-    // 세션에 해당하는 block 조회
+
     List<SessionBlock> findAllBySessionId(String sessionId);
+
+    List<SessionBlock> findByIds(String sessionId, List<Long> blockIds);
+
+    void deleteBySessionId(String sessionId);
+
+    void replaceAll(String sessionId, List<SessionBlock> blocks);
 }
