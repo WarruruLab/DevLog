@@ -19,5 +19,7 @@ public interface SyncedMessageRepository {
 
     void markStructured(List<String> messageIds, LocalDateTime structuredAt);
 
+    void markPendingBySessionId(String sessionId);
+
     void deleteAllBySessionId(String sessionId);
 }

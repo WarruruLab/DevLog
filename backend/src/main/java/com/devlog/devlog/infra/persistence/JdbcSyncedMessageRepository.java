@@ -109,6 +109,17 @@ public class JdbcSyncedMessageRepository implements SyncedMessageRepository {
     }
 
     @Override
+    public void markPendingBySessionId(String sessionId) {
+        String sql = """
+            UPDATE session_message
+            SET structure_status = 'PENDING',
+                structured_at = NULL
+            WHERE session_id = ?
+            """;
+        jdbcTemplate.update(sql, sessionId);
+    }
+
+    @Override
     public void deleteAllBySessionId(String sessionId) {
         jdbcTemplate.update("DELETE FROM session_message WHERE session_id = ?", sessionId);
     }
