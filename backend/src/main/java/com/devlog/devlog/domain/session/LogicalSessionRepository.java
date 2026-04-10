@@ -9,6 +9,8 @@ public interface LogicalSessionRepository {
 
     String saveOrUpdate(LogicalSession session);
 
+    void upsertMetadata(String sessionId, String sourceSessionId, String title);
+
     Optional<LogicalSession> findBySessionId(String sessionId);
 
     Optional<LogicalSession> findBySourceSessionId(String sourceSessionId);

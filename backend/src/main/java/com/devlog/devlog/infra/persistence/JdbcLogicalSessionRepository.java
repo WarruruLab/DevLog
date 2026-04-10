@@ -87,6 +87,23 @@ public class JdbcLogicalSessionRepository implements LogicalSessionRepository {
     }
 
     @Override
+    public void upsertMetadata(String sessionId, String sourceSessionId, String title) {
+        String sql = """
+            INSERT INTO logical_session (
+                session_id, source_session_id, title
+            ) VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                source_session_id = VALUES(source_session_id),
+                title = VALUES(title)
+            """;
+
+        jdbcTemplate.update(sql,
+            sessionId,
+            defaultString(sourceSessionId, sessionId),
+            defaultString(title, sessionId));
+    }
+
+    @Override
     public Optional<LogicalSession> findBySessionId(String sessionId) {
         String sql = "SELECT * FROM logical_session WHERE session_id = ?";
         try {
@@ -198,7 +215,7 @@ public class JdbcLogicalSessionRepository implements LogicalSessionRepository {
     );
 
     private static String defaultString(String value, String fallback) {
-        return value != null ? value : fallback;
+        return value != null && !value.isBlank() ? value : fallback;
     }
 
     private static Timestamp toTimestamp(java.time.LocalDateTime dateTime) {

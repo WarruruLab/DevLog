@@ -3,6 +3,8 @@ package com.devlog.devlog.service.session;
 import com.devlog.devlog.api.dto.response.SessionBlockResponse;
 import com.devlog.devlog.api.dto.response.SessionDetailResponse;
 import com.devlog.devlog.api.dto.response.SessionSummaryResponse;
+import com.devlog.devlog.infra.client.DevTalkClient;
+import com.devlog.devlog.infra.client.dto.DevTalkSessionSummaryResponse;
 import com.devlog.devlog.domain.analysis.SessionBlock;
 import com.devlog.devlog.domain.analysis.SessionBlockMessage;
 import com.devlog.devlog.domain.analysis.SessionBlockMessageRepository;
@@ -14,6 +16,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,20 +27,24 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class SessionService {
 
+    private static final Logger log = LoggerFactory.getLogger(SessionService.class);
+
     private final LogicalSessionRepository sessionRepository;
     private final SessionBlockRepository blockRepository;
     private final SessionBlockMessageRepository blockMessageRepository;
+    private final DevTalkClient devTalkClient;
 
     public SessionService(LogicalSessionRepository sessionRepository,
         SessionBlockRepository blockRepository,
-        SessionBlockMessageRepository blockMessageRepository) {
+        SessionBlockMessageRepository blockMessageRepository, DevTalkClient devTalkClient) {
         this.sessionRepository = sessionRepository;
         this.blockRepository = blockRepository;
         this.blockMessageRepository = blockMessageRepository;
+        this.devTalkClient = devTalkClient;
     }
 
-    @Transactional(readOnly = true)
     public List<SessionSummaryResponse> getSessions() {
+        refreshDevTalkMetadata();
         return sessionRepository.findAll().stream()
             .sorted(Comparator.comparing(SessionService::sortTime,
                 Comparator.nullsLast(Comparator.reverseOrder())))
@@ -99,6 +107,31 @@ public class SessionService {
             session.getLastSyncedAt(),
             session.getLastAnalyzedAt()
         );
+    }
+
+    private void refreshDevTalkMetadata() {
+        try {
+            List<DevTalkSessionSummaryResponse> devTalkSessions = devTalkClient.fetchSessions();
+            if (devTalkSessions == null || devTalkSessions.isEmpty()) {
+                return;
+            }
+
+            for (DevTalkSessionSummaryResponse devTalkSession : devTalkSessions) {
+                if (devTalkSession == null || devTalkSession.sessionId() == null
+                    || devTalkSession.sessionId().isBlank()) {
+                    continue;
+                }
+
+                sessionRepository.upsertMetadata(
+                    devTalkSession.sessionId(),
+                    devTalkSession.sessionId(),
+                    devTalkSession.title()
+                );
+            }
+        } catch (RuntimeException e) {
+            log.warn("Failed to refresh DevTalk session metadata, falling back to local DB list: {}",
+                e.getMessage());
+        }
     }
 
     private SessionDetailResponse toDetailResponse(LogicalSession session) {
