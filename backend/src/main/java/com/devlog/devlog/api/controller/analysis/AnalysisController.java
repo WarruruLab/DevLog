@@ -1,6 +1,6 @@
 package com.devlog.devlog.api.controller.analysis;
 
-import com.devlog.devlog.api.dto.response.SessionBlockResponse;
+import com.devlog.devlog.api.dto.response.AnalysisTriggerResponse;
 import com.devlog.devlog.service.analysis.AnalysisService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,8 +19,10 @@ public class AnalysisController {
     }
 
     @PostMapping("/{sessionId}")
-    public ResponseEntity<SessionBlockResponse> startAnalysis(@PathVariable String sessionId) {
-        SessionBlockResponse response = analysisService.startAnalysis(sessionId);
-        return response != null ? ResponseEntity.ok(response) : ResponseEntity.noContent().build();
+    public ResponseEntity<AnalysisTriggerResponse> startAnalysis(@PathVariable String sessionId) {
+        AnalysisTriggerResponse response = analysisService.startAnalysis(sessionId);
+        return "RUNNING".equalsIgnoreCase(response.analysisStatus())
+            ? ResponseEntity.accepted().body(response)
+            : ResponseEntity.ok(response);
     }
 }

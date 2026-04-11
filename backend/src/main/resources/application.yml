@@ -40,7 +40,3 @@ devtalk:
     read-timeout-ms: 10000
     # api-key: ${DEVTALK_INTERNAL_KEY} # 추후 보안 적용 시 사용
 
-# 3. DevLog 전용 설정
-devlog:
-  analysis:
-    chunk-size: 20 # 한 번에 분석할 메시지 개수 (긴 세션 처리용)

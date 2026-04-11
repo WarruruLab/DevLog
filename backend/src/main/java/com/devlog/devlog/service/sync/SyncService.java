@@ -38,27 +38,10 @@ public class SyncService {
         sessionRepository.updateSessionStatus(sessionId, "SYNCING");
 
         try {
-            String cursor = messageRepository.findLastCreatedAtBySessionId(sessionId)
+            String initialCursor = messageRepository.findLastCreatedAtBySessionId(sessionId)
                 .map(LocalDateTime::toString)
                 .orElse(null);
-
-            InternalMessagePageResponse response = devTalkClient.fetchMessages(sessionId, cursor);
-
-            if (response != null && !response.messages().isEmpty()) {
-                List<SyncedMessage> newMessages = response.messages().stream()
-                    .map(dto -> new SyncedMessage(
-                        dto.messageId(),
-                        sessionId,
-                        dto.content(),
-                        dto.role(),
-                        null,
-                        dto.createdAt(),
-                        "PENDING",
-                        null
-                    ))
-                    .toList();
-                messageRepository.saveAll(newMessages);
-            }
+            syncAllPages(sessionId, initialCursor);
 
             long totalCount = messageRepository.countBySessionId(sessionId);
             long structuredCount = messageRepository.countStructuredBySessionId(sessionId);
@@ -87,5 +70,48 @@ public class SyncService {
             sessionRepository.updateSessionStatus(sessionId, "FAILED");
             throw e;
         }
+    }
+
+    private void syncAllPages(String sessionId, String initialCursor) {
+        String cursor = initialCursor;
+
+        while (true) {
+            InternalMessagePageResponse response = devTalkClient.fetchMessages(sessionId, cursor);
+            if (response == null) {
+                return;
+            }
+
+            saveMessages(sessionId, response);
+
+            if (!response.hasMore()) {
+                return;
+            }
+
+            String nextCursor = response.nextCursor();
+            if (nextCursor == null || nextCursor.isBlank() || nextCursor.equals(cursor)) {
+                throw new IllegalStateException("DevTalk pagination returned invalid nextCursor");
+            }
+            cursor = nextCursor;
+        }
+    }
+
+    private void saveMessages(String sessionId, InternalMessagePageResponse response) {
+        if (response.messages() == null || response.messages().isEmpty()) {
+            return;
+        }
+
+        List<SyncedMessage> newMessages = response.messages().stream()
+            .map(dto -> new SyncedMessage(
+                dto.messageId(),
+                sessionId,
+                dto.content(),
+                dto.role(),
+                null,
+                dto.createdAt(),
+                "PENDING",
+                null
+            ))
+            .toList();
+        messageRepository.saveAll(newMessages);
     }
 }
