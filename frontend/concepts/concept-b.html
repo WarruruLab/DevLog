@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevLog - Concept B</title>
+  <style>
+    :root{--bg:#f4f7f9;--panel:#fff;--line:#dbe4ea;--text:#20303d;--muted:#667784;--blue:#4a90e2;--blue-deep:#2f74c8;--blue-soft:#eaf3ff;--green:#1f7d45;--green-soft:#edf9f1;--amber:#9a6a00;--amber-soft:#fff7e2;--shadow:0 18px 40px rgba(27,44,59,.07);--radius:20px}
+    *{box-sizing:border-box} html,body{margin:0;min-width:320px;min-height:100%;background:linear-gradient(180deg,#f7fafc,#eff5f9);color:var(--text);font-family:"Pretendard","Apple SD Gothic Neo",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button{font:inherit;cursor:pointer} .hidden{display:none!important}
+    .view{min-height:100vh;padding:28px;opacity:0;transform:translateY(14px);pointer-events:none;transition:.28s ease} .view.active{opacity:1;transform:none;pointer-events:auto}
+    .shell{max-width:1360px;margin:0 auto} .topbar,.panel-head,.stage-top,.rail-head,.session-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .topbar{align-items:center;margin-bottom:18px} .brand{display:flex;gap:14px;align-items:center} .brand-mark{width:46px;height:46px;border-radius:15px;background:linear-gradient(145deg,#67abef,#2f74c8);box-shadow:0 12px 26px rgba(74,144,226,.24)}
+    .brand h1{margin:0;font-size:22px;letter-spacing:-.02em} .brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .btn,.chip{display:inline-flex;align-items:center} .btn{min-height:42px;padding:0 15px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-weight:600} .btn:hover{border-color:var(--blue);color:var(--blue)} .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff} .btn.primary:hover{background:var(--blue-deep);border-color:var(--blue-deep);color:#fff} .btn:disabled{opacity:.5;cursor:default}
+    .chip{min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700} .chip.blue{background:var(--blue-soft);color:var(--blue)} .chip.green{background:var(--green-soft);color:var(--green)} .chip.amber{background:var(--amber-soft);color:var(--amber)}
+    .hero,.panel,.stage,.rail,.block,.session,.snapshot,.status{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .home-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:18px;align-items:start} .home-col,.work-col{display:grid;gap:16px} .work-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.72fr);gap:18px;align-items:start}
+    .hero{padding:28px;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,251,255,.96))} .eyebrow{display:inline-flex;padding:6px 10px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .hero h2,.stage h2{margin:14px 0 8px;letter-spacing:-.04em;line-height:1.05} .hero h2{font-size:clamp(30px,4vw,48px);max-width:9ch} .stage h2{font-size:clamp(28px,3.4vw,42px);max-width:14ch}
+    .hero p,.stage p,.panel-head p,.rail p,.status p{margin:0;color:var(--muted);font-size:14px;line-height:1.7} .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+    .hero-stat,.snapshot-item{padding:14px;border-radius:16px;background:#f8fbfd;border:1px solid #edf3f6} .hero-stat strong,.snapshot-item strong{display:block;margin-bottom:4px;color:var(--muted);font-size:12px;text-transform:uppercase} .hero-stat span{display:block;font-size:18px;font-weight:700}
+    .panel,.snapshot,.stage,.rail,.status{padding:18px} .panel-head{margin-bottom:14px} .panel-head h3,.rail h3{margin:0;font-size:16px}
+    .session-list,.block-list,.snapshot-grid{display:grid;gap:10px} .session{width:100%;padding:15px;text-align:left;transition:.2s ease;background:#fff} .session:hover,.block:hover{transform:translateY(-1px);border-color:#c5d9ea} .session.active,.block.selected{border-color:var(--blue);background:linear-gradient(180deg,#fff,#f7fbff)}
+    .session-title,.block h4{margin:0;font-size:14px;line-height:1.45} .session-meta,.block p,.block-body,.snapshot-item span{color:var(--muted);font-size:12px;line-height:1.6} .session-meta{display:flex;flex-wrap:wrap;gap:8px}
+    .snapshot{position:sticky;top:18px;background:linear-gradient(180deg,#fff,#f9fbfd)} .snapshot-note,.rail-note{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.6}
+    .stage{background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,251,255,.97))} .stage-meta,.block-tags,.toolbar,.top-actions,.hero-actions,.rail-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .stage-meta{margin-top:16px} .stage-meta .chip{background:#f3f8fc;color:#587182;border:1px solid #e2ebf2} .status strong,.sync-inline strong{display:block;margin-bottom:6px;font-size:13px}
+    .progress{height:10px;border-radius:999px;background:#e9f1f7;overflow:hidden;margin-top:12px} .progress span{display:block;width:0;height:100%;background:linear-gradient(90deg,#5ea3eb,#2f74c8);transition:width .35s ease}
+    .sync-inline{display:flex;gap:12px;align-items:flex-start;padding:16px;border-radius:18px;border:1px solid #dce9f8;background:linear-gradient(180deg,#fff,#f7fbff)} .spinner{width:20px;height:20px;border-radius:50%;border:2px solid #d6e7fb;border-top-color:var(--blue);animation:spin .9s linear infinite;flex:none;margin-top:2px} @keyframes spin{to{transform:rotate(360deg)}}
+    .block{padding:15px;transition:.2s ease;cursor:pointer} .block-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px} .block-body{font-size:13px;color:#344754}
+    .rail{position:sticky;top:18px;transition:.28s ease} .rail.idle{opacity:.78;transform:translateY(4px);border-style:dashed;box-shadow:none;background:rgba(255,255,255,.84)} .rail.ready{opacity:1;transform:none} .rail.generated{border-color:#cfe0ee;box-shadow:0 22px 48px rgba(27,44,59,.09)}
+    .rail-empty{display:grid;place-items:center;min-height:240px;text-align:center;color:var(--muted);border:1px dashed #d8e3ea;border-radius:18px;background:rgba(255,255,255,.65);padding:20px}
+    .draft-box{min-height:240px;padding:14px;border-radius:18px;background:#f8fbfd;border:1px solid #edf3f6} .draft-box h4{margin:0 0 8px;font-size:15px;line-height:1.45} .draft-box p{margin:0;white-space:pre-wrap;color:#334653;font-size:13px;line-height:1.7}
+    @media (max-width:1080px){.home-grid,.work-grid{grid-template-columns:1fr}.snapshot,.rail{position:static}} @media (max-width:720px){.view{padding:16px}.topbar,.panel-head,.stage-top,.rail-head,.session-top{flex-direction:column;align-items:flex-start}.hero-stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="view active" id="homeView">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand"><div class="brand-mark"></div><div><h1>DevLog</h1><p>DevTalk 세션을 고르고, 블록을 엮고, 초안을 만드는 작업 공간</p></div></div>
+        <div class="top-actions"><span class="chip blue">Selection stage</span><button class="btn primary">불러오기</button></div>
+      </div>
+      <div class="home-grid">
+        <div class="home-col">
+          <section class="hero">
+            <span class="eyebrow">Recommended Flow</span>
+            <h2>세션을 고른 뒤, 상세 화면에서 블록과 초안을 완성한다.</h2>
+            <p>홈에서는 세션 선택만 집중해서 보여주고, 세션에 들어간 뒤에만 분석 상태와 블록, 초안 생성 흐름을 순서대로 연다. concept-a보다 더 큐레이션된 단계감이 있고, concept-c처럼 오버레이에 의존하지 않는다.</p>
+            <div class="hero-actions"><button class="btn primary" id="heroEnterBtn">선택한 세션 열기</button><button class="btn">동기화 상태 보기</button></div>
+            <div class="hero-stats"><div class="hero-stat"><strong>Sessions</strong><span>18</span></div><div class="hero-stat"><strong>Pending</strong><span>4</span></div><div class="hero-stat"><strong>Draft Ready</strong><span>11</span></div></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>DevTalk 세션</h3><p>홈에서는 세션만 고른다.</p></div><span class="chip blue">Session list</span></div>
+            <div class="session-list" id="homeList">
+              <button class="session active" data-session="s1"><div class="session-top"><div><h4 class="session-title">JWT 갱신 중 반복 리다이렉트 문제 정리</h4><div class="session-meta"><span>session-2026-0406-01</span><span>메시지 42개</span></div></div><span class="chip green">진행 중</span></div><div class="session-meta"><span>마지막 동기화 10분 전</span><span>미구조화 3개</span></div></button>
+              <button class="session" data-session="s2"><div class="session-top"><div><h4 class="session-title">이미지 업로드 413 에러 원인 추적</h4><div class="session-meta"><span>session-2026-0405-09</span><span>메시지 28개</span></div></div><span class="chip amber">분석 완료</span></div><div class="session-meta"><span>마지막 동기화 1시간 전</span><span>미구조화 0개</span></div></button>
+              <button class="session" data-session="s3"><div class="session-top"><div><h4 class="session-title">알림 배치 중복 실행 방지</h4><div class="session-meta"><span>session-2026-0404-03</span><span>메시지 51개</span></div></div><span class="chip blue">초안 준비</span></div><div class="session-meta"><span>마지막 동기화 2시간 전</span><span>미구조화 5개</span></div></button>
+            </div>
+          </section>
+        </div>
+        <aside class="snapshot">
+          <div class="panel-head"><div><h3>선택한 세션 요약</h3><p>홈에서는 작업 전 정보만 먼저 보여준다.</p></div><span class="chip blue" id="selectedChip">선택됨 session-2026-0406-01</span></div>
+          <div class="snapshot-grid"><div class="snapshot-item"><strong>세션 제목</strong><span id="homeTitle">JWT 갱신 중 반복 리다이렉트 문제 정리</span></div><div class="snapshot-item"><strong>메시지 수</strong><span id="homeCount">42개</span></div><div class="snapshot-item"><strong>마지막 동기화</strong><span id="homeSync">10분 전</span></div><div class="snapshot-item"><strong>현재 상태</strong><span id="homeStatus">미구조화 메시지 3개 남음</span></div></div>
+          <div class="snapshot-note">세션을 열면 그때 분석 상태와 블록 구조화 진행 상황을 확인하고, 완료된 뒤에만 블록을 고를 수 있다.</div>
+          <div class="rail-actions" style="margin-top:16px"><button class="btn primary" id="enterBtn">세션 열기</button></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <div class="view" id="detailView">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand"><button class="btn" id="backBtn">세션 목록</button><div><h1 id="detailTitle">JWT 갱신 중 반복 리다이렉트 문제 정리</h1><p id="detailMeta">session-2026-0406-01 · 메시지 42개 · 미구조화 3개 확인 중</p></div></div>
+        <div class="top-actions"><span class="chip amber" id="syncChip">분석 중</span><button class="btn" id="checkBtn">메시지 다시 확인</button><button class="btn primary" id="writeTopBtn" disabled>글 생성</button></div>
+      </div>
+      <div class="work-grid">
+        <div class="work-col">
+          <section class="stage"><div class="stage-top"><div><span class="eyebrow">Session Detail</span><h2>분석 상태를 확인한 뒤, 블록을 골라 글 흐름을 만든다.</h2><p>홈과 상세를 다른 장면처럼 분리했다. 상세 화면은 작업 중심이고, 초안 패널은 오른쪽 보조 레일로 단계적으로 활성화된다.</p></div><span class="chip amber" id="analysisChip">구조화 진행 중</span></div><div class="stage-meta"><span class="chip">세션 메타</span><span class="chip">분석 상태</span><span class="chip">블록 선택</span><span class="chip">초안 생성</span></div></section>
+          <section class="status"><strong>메시지 동기화 상태</strong><p id="syncText">DevTalk에서 가져온 메시지 중 아직 블록으로 들어가지 않은 항목을 정리하고 있다. 미구조화 메시지가 남아 있으면 블록 선택은 잠시 대기 상태로 유지된다.</p><div class="progress"><span id="progressBar"></span></div></section>
+          <div class="sync-inline" id="analysisInline"><div class="spinner"></div><div><strong>분석 중</strong><span id="loadingText">남아 있는 메시지를 블록으로 구조화하는 중이다. 완료되면 블록을 직접 고르고 초안을 만들 수 있다.</span></div></div>
+          <div class="toolbar"><button class="btn" id="restructureBtn" disabled>블록 다시 구조화</button><button class="btn" id="selectAllBtn" disabled>전체 선택</button><button class="btn" id="clearBtn" disabled>선택 해제</button></div>
+          <div class="block-list hidden" id="blockList">
+            <div class="block selected"><div class="block-top"><div><h4>문제. refresh 토큰 갱신 직후에도 리다이렉트가 반복된 원인</h4><p>message 1281 ~ message 1284</p></div><span class="chip blue">선택됨</span></div><div class="block-body">토큰은 갱신됐지만 이전 인증 상태가 남아 있어 같은 요청이 다시 실패했고, 그 결과 동일한 리다이렉트가 반복되었다.</div><div class="block-tags"><span class="chip blue">PROBLEM</span><span class="chip blue">CAUSE</span></div></div>
+            <div class="block selected"><div class="block-top"><div><h4>해결. 세션 상태 초기화 순서를 먼저 고정</h4><p>message 1287 ~ message 1290</p></div><span class="chip green">선택됨</span></div><div class="block-body">refresh 실패 시 세션 저장소를 먼저 비우고, 로그인 화면으로 이동하는 흐름을 한 번만 타도록 순서를 정리했다.</div><div class="block-tags"><span class="chip green">SOLUTION</span><span class="chip green">TRIAL</span></div></div>
+            <div class="block"><div class="block-top"><div><h4>검증. 실제 사용자 흐름으로 재현해 상태 전환 확인</h4><p>message 1294 ~ message 1298</p></div><span class="chip amber">미선택</span></div><div class="block-body">정상 로그인, refresh 실패, 재로그인 시나리오를 반복하며 상태 초기화 순서가 의도대로 유지되는지 점검했다.</div><div class="block-tags"><span class="chip amber">VERIFICATION</span></div></div>
+          </div>
+        </div>
+        <aside class="rail idle" id="draftRail">
+          <div class="rail-head"><div><h3>블로그 초안</h3><p>블록을 선택한 뒤 글 생성 버튼을 누르면 오른쪽 레일에서 초안을 확인한다.</p></div><span class="chip blue" id="countChip">선택 2개</span></div>
+          <div class="rail-empty" id="draftEmpty">분석이 끝나고 블록을 고른 뒤에만 초안 생성이 열린다.<br>지금은 흐름을 먼저 정하는 단계다.</div>
+          <div class="draft-box hidden" id="draftBox"><h4 id="draftTitle">JWT 갱신 중 반복 리다이렉트 문제 정리</h4><p id="draftText"></p></div>
+          <div class="rail-actions" style="margin-top:14px"><button class="btn" id="copyBtn" disabled>초안 복사</button><button class="btn primary" id="writeBtn" disabled>글 생성</button></div>
+          <div class="rail-note">초안은 자동으로 생기지 않는다. 사용자가 블록을 선택하고 직접 글 생성 액션을 눌러야만 결과가 만들어진다.</div>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <script>
+    const sessions={s1:{title:'JWT 갱신 중 반복 리다이렉트 문제 정리',sessionId:'session-2026-0406-01',count:'42개',sync:'10분 전',status:'미구조화 메시지 3개 남음',syncText:'DevTalk에서 가져온 메시지 중 아직 블록으로 들어가지 않은 항목을 정리하고 있다. 미구조화 메시지가 남아 있으면 블록 선택은 잠시 대기 상태로 유지된다.',loadingText:'남아 있는 메시지를 블록으로 구조화하는 중이다. 완료되면 블록을 직접 고르고 초안을 만들 수 있다.',draft:['# JWT 갱신 중 반복 리다이렉트 문제 정리','','이번 세션에서는 refresh 토큰 갱신 이후에도 로그인 화면으로 계속 돌아가던 문제를 추적했다.','','- 문제: 갱신 이후에도 이전 인증 상태가 남아 동일 요청이 반복 실패했다.','- 해결: 실패 시 세션 저장소를 먼저 비우고 한 번만 이동하도록 순서를 고정했다.','- 검증: 정상 흐름과 실패 흐름을 반복해 상태 전환이 안정적인지 확인했다.'].join('\n')},s2:{title:'이미지 업로드 413 에러 원인 추적',sessionId:'session-2026-0405-09',count:'28개',sync:'1시간 전',status:'미구조화 메시지 0개',syncText:'모든 메시지가 이미 동기화되었고 블록 구조화도 끝난 상태다. 바로 블록을 선택해 초안을 만들 수 있다.',loadingText:'이 세션은 바로 작업 가능한 상태다. 블록을 선택하고 초안 생성을 진행하면 된다.',draft:['# 이미지 업로드 413 에러 원인 추적','','대용량 이미지 업로드 시 서버가 요청을 거절하던 상황을 정리했다.','','- 문제: 업로드 전 용량 검사가 없어 실패가 늦게 드러났다.','- 해결: 클라이언트와 서버 양쪽에서 제한을 명확히 맞췄다.','- 검증: 경계 용량 파일과 초과 파일을 나눠 동작을 비교했다.'].join('\n')},s3:{title:'알림 배치 중복 실행 방지',sessionId:'session-2026-0404-03',count:'51개',sync:'2시간 전',status:'미구조화 메시지 5개 남음',syncText:'메시지는 모두 들어왔지만 아직 일부가 블록 구조화 대기 상태다. 분석이 끝나면 블록 선택이 열린다.',loadingText:'남은 메시지를 블록으로 묶는 중이다. 완료 후 초안 생성을 이어갈 수 있다.',draft:['# 알림 배치 중복 실행 방지','','배치 시작 시간이 겹칠 때 같은 알림이 두 번 발송되던 문제를 추적했다.','','- 문제: 실행 상태와 재시도 상태가 분리되지 않았다.','- 해결: 배치 상태와 알림 상태를 나누고 조건을 명확히 고정했다.','- 검증: 재시도 케이스와 정상 케이스를 분리해 로그까지 확인했다.'].join('\n')}};
+    const $=s=>document.querySelector(s),homeView=$('#homeView'),detailView=$('#detailView'),homeList=$('#homeList'),selectedChip=$('#selectedChip'),homeTitle=$('#homeTitle'),homeCount=$('#homeCount'),homeSync=$('#homeSync'),homeStatus=$('#homeStatus'),enterBtn=$('#enterBtn'),heroEnterBtn=$('#heroEnterBtn'),backBtn=$('#backBtn'),detailTitle=$('#detailTitle'),detailMeta=$('#detailMeta'),syncChip=$('#syncChip'),analysisChip=$('#analysisChip'),syncText=$('#syncText'),loadingText=$('#loadingText'),progressBar=$('#progressBar'),analysisInline=$('#analysisInline'),blockList=$('#blockList'),selectAllBtn=$('#selectAllBtn'),clearBtn=$('#clearBtn'),restructureBtn=$('#restructureBtn'),writeBtn=$('#writeBtn'),writeTopBtn=$('#writeTopBtn'),copyBtn=$('#copyBtn'),draftRail=$('#draftRail'),countChip=$('#countChip'),draftEmpty=$('#draftEmpty'),draftBox=$('#draftBox'),draftTitle=$('#draftTitle'),draftText=$('#draftText');
+    let current=sessions.s1,ready=false,draftReady=false,timer=0;
+    const selectedBlocks=()=>Array.from(blockList.querySelectorAll('.block.selected'));
+    function updateHome(key){current=sessions[key];homeList.querySelectorAll('.session').forEach(x=>x.classList.toggle('active',x.dataset.session===key));selectedChip.textContent=`선택됨 ${current.sessionId}`;homeTitle.textContent=current.title;homeCount.textContent=current.count;homeSync.textContent=current.sync;homeStatus.textContent=current.status;enterBtn.dataset.session=key;heroEnterBtn.dataset.session=key}
+    function showHome(){detailView.classList.remove('active');homeView.classList.add('active')}
+    function showDetail(){homeView.classList.remove('active');detailView.classList.add('active')}
+    function setRail(mode){draftRail.classList.remove('idle','ready','generated');draftRail.classList.add(mode)}
+    function updateCount(){const c=selectedBlocks().length;countChip.textContent=`선택 ${c}개`;writeBtn.disabled=writeTopBtn.disabled=!ready||c===0;copyBtn.disabled=!draftReady;if(ready&&c>0&&!draftReady)setRail('ready');if(c===0&&!draftReady)setRail('idle')}
+    function reveal(){ready=true;blockList.classList.remove('hidden');analysisInline.classList.add('hidden');restructureBtn.disabled=selectAllBtn.disabled=clearBtn.disabled=false;progressBar.style.width='100%';syncChip.textContent='분석 완료';syncChip.className='chip green';analysisChip.textContent='블록 선택 가능';analysisChip.className='chip blue';syncText.textContent='모든 메시지가 블록 구조화까지 끝났다. 이제 블록을 고르고 글 흐름을 정할 수 있다.';loadingText.textContent='분석이 끝났다. 선택한 블록으로 초안을 만들 수 있다.';updateCount()}
+    function openSession(key){updateHome(key);detailTitle.textContent=current.title;detailMeta.textContent=`${current.sessionId} · 메시지 ${current.count} · ${current.status}`;syncText.textContent=current.syncText;loadingText.textContent=current.loadingText;progressBar.style.width='34%';syncChip.textContent='분석 중';syncChip.className='chip amber';analysisChip.textContent='구조화 진행 중';analysisChip.className='chip amber';blockList.classList.add('hidden');analysisInline.classList.remove('hidden');restructureBtn.disabled=selectAllBtn.disabled=clearBtn.disabled=true;ready=draftReady=false;draftEmpty.classList.remove('hidden');draftBox.classList.add('hidden');writeBtn.textContent=writeTopBtn.textContent='글 생성';setRail('idle');showDetail();clearTimeout(timer);timer=setTimeout(reveal,1700);updateCount()}
+    function makeDraft(){if(!ready||selectedBlocks().length===0)return;const titles=selectedBlocks().map(x=>x.querySelector('h4').textContent);draftTitle.textContent=current.title;draftText.textContent=`${current.draft}\n\n선택한 블록: ${titles.join(', ')}`;draftEmpty.classList.add('hidden');draftBox.classList.remove('hidden');draftReady=true;copyBtn.disabled=false;writeBtn.textContent=writeTopBtn.textContent='초안 다시 생성';analysisChip.textContent='블록 선택 완료';analysisChip.className='chip green';setRail('generated');updateCount()}
+    homeList.addEventListener('click',e=>{const x=e.target.closest('.session');if(x)updateHome(x.dataset.session)}); enterBtn.addEventListener('click',()=>openSession(enterBtn.dataset.session||'s1')); heroEnterBtn.addEventListener('click',()=>openSession(heroEnterBtn.dataset.session||'s1')); backBtn.addEventListener('click',showHome);
+    blockList.addEventListener('click',e=>{if(!ready)return;const b=e.target.closest('.block');if(!b)return;b.classList.toggle('selected');const chip=b.querySelector('.chip');if(b.classList.contains('selected')){chip.textContent='선택됨';chip.className='chip blue'}else{chip.textContent='미선택';chip.className='chip amber'}if(draftReady){draftReady=false;draftBox.classList.add('hidden');draftEmpty.classList.remove('hidden');draftEmpty.innerHTML='블록 구성이 바뀌었다.<br>새 흐름으로 다시 글 생성을 눌러 초안을 만든다.';writeBtn.textContent=writeTopBtn.textContent='글 생성';copyBtn.disabled=true;setRail(selectedBlocks().length>0?'ready':'idle')}updateCount()});
+    selectAllBtn.addEventListener('click',()=>{if(!ready)return;blockList.querySelectorAll('.block').forEach(b=>{b.classList.add('selected');const c=b.querySelector('.chip');c.textContent='선택됨';c.className='chip blue'});updateCount()});
+    clearBtn.addEventListener('click',()=>{if(!ready)return;blockList.querySelectorAll('.block').forEach(b=>{b.classList.remove('selected');const c=b.querySelector('.chip');c.textContent='미선택';c.className='chip amber'});draftReady=false;draftBox.classList.add('hidden');draftEmpty.classList.remove('hidden');draftEmpty.innerHTML='블록을 다시 고르면 오른쪽 레일에서 초안 생성을 이어갈 수 있다.';writeBtn.textContent=writeTopBtn.textContent='글 생성';copyBtn.disabled=true;setRail('idle');updateCount()});
+    restructureBtn.addEventListener('click',()=>{if(!ready)return;ready=draftReady=false;blockList.classList.add('hidden');analysisInline.classList.remove('hidden');syncChip.textContent='분석 중';syncChip.className='chip amber';analysisChip.textContent='구조화 다시 진행 중';analysisChip.className='chip amber';syncText.textContent='새로 확인된 메시지를 포함해 블록을 다시 맞추고 있다.';loadingText.textContent='초안보다 먼저 블록 구성을 최신 상태로 다시 정리한다.';progressBar.style.width='56%';draftBox.classList.add('hidden');draftEmpty.classList.remove('hidden');draftEmpty.innerHTML='블록을 다시 구조화하는 중이다.<br>완료되면 새 흐름으로 다시 선택할 수 있다.';writeBtn.textContent=writeTopBtn.textContent='글 생성';copyBtn.disabled=true;setRail('idle');updateCount();clearTimeout(timer);timer=setTimeout(reveal,1600)});
+    writeBtn.addEventListener('click',makeDraft); writeTopBtn.addEventListener('click',makeDraft);
+    copyBtn.addEventListener('click',async()=>{if(!draftReady)return;try{await navigator.clipboard.writeText(draftText.textContent||'');copyBtn.textContent='복사 완료';setTimeout(()=>copyBtn.textContent='초안 복사',1000)}catch(e){copyBtn.textContent='복사 실패';setTimeout(()=>copyBtn.textContent='초안 복사',1000)}});
+    updateHome('s1'); updateCount();
+  </script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevLog - Concept C</title>
+  <style>
+    :root{--bg:#f4f7f9;--panel:#fff;--line:#dbe4ea;--text:#20303d;--muted:#667784;--blue:#4a90e2;--blue-deep:#357abd;--blue-soft:#eaf3ff;--green:#1f7d45;--green-soft:#edf9f1;--amber:#9a6a00;--amber-soft:#fff7e2;--shadow:0 18px 40px rgba(27,44,59,.07);--radius:18px}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-width:320px;min-height:100%;background:radial-gradient(circle at top left,rgba(74,144,226,.08),transparent 30%),radial-gradient(circle at bottom right,rgba(74,144,226,.06),transparent 28%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Pretendard",sans-serif}
+    button{font:inherit;cursor:pointer}
+    .view{min-height:100vh;padding:28px}
+    .shell{max-width:1320px;margin:0 auto}
+    .topbar{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}
+    .brand{display:flex;gap:14px;align-items:center}
+    .brand-mark{width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,#5ea3eb,#2f74c8);box-shadow:0 12px 24px rgba(74,144,226,.25)}
+    .brand h1{margin:0;font-size:22px;letter-spacing:-.02em}
+    .brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .btn{min-height:42px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-weight:600}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn:hover{border-color:var(--blue);color:var(--blue)}
+    .hero,.panel,.drawer{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .hero{padding:22px;margin-bottom:16px}
+    .hero .eyebrow{display:inline-flex;padding:6px 10px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-size:12px;font-weight:700;text-transform:uppercase}
+    .hero h2{margin:12px 0 8px;font-size:clamp(22px,2.5vw,30px);line-height:1.1;letter-spacing:-.03em}
+    .hero p{margin:0;color:var(--muted);line-height:1.7;font-size:14px}
+    .home-grid,.workspace-grid{display:grid;gap:16px}
+    .home-grid{grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr)}
+    .workspace-grid{grid-template-columns:minmax(0,1.35fr) minmax(320px,.95fr)}
+    .section{padding:18px}
+    .section h3,.drawer h3{margin:0;font-size:16px}
+    .section p,.drawer p{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+    .stat-row,.list{display:grid;gap:10px}
+    .stat-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stat{padding:12px 14px;border-radius:14px;background:#f8fbfd;border:1px solid #edf3f6}
+    .stat strong{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase}
+    .session{width:100%;padding:14px;border-radius:16px;border:1px solid var(--line);background:#fff;text-align:left}
+    .session.active{border-color:var(--blue);background:linear-gradient(180deg,#fff,#f7fbff)}
+    .session-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+    .session-title{margin:0;font-size:15px;line-height:1.45}
+    .session-meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px}
+    .chip{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600}
+    .chip.blue{background:var(--blue-soft);color:var(--blue)}
+    .chip.green{background:var(--green-soft);color:var(--green)}
+    .chip.amber{background:var(--amber-soft);color:var(--amber)}
+    .toolbar,.actions{display:flex;gap:10px;flex-wrap:wrap}
+    .toolbar{margin:14px 0}
+    .status{padding:14px;border-radius:16px;background:#f8fbfd;border:1px solid #edf3f6;margin:14px 0}
+    .status strong{display:block;margin-bottom:6px;font-size:13px}
+    .progress{height:10px;border-radius:999px;background:#e9f1f7;overflow:hidden;margin-top:12px}
+    .progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#5ea3eb,#2f74c8);transition:width .35s}
+    .analysis{padding:16px;border-radius:18px;border:1px solid #dce9f8;background:linear-gradient(180deg,#fff,#f7fbff);margin-bottom:16px}
+    .spinner{width:22px;height:22px;border-radius:50%;border:2px solid #d6e7fb;border-top-color:var(--blue);animation:spin .9s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .overlay{display:none;position:absolute;inset:0;background:rgba(255,255,255,.3);backdrop-filter:blur(2px);border-radius:18px;align-items:center;justify-content:center}
+    .overlay.active{display:flex}
+    .blocks{display:grid;gap:10px}
+    .block{padding:14px;border-radius:16px;border:1px solid var(--line);background:#fff;cursor:pointer}
+    .block.selected{border-color:var(--blue);background:linear-gradient(180deg,#fff,#f7fbff)}
+    .block-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+    .block-top h4{margin:0;font-size:14px;line-height:1.45}
+    .block-top p,.block-body{margin:0;color:#344754;font-size:13px;line-height:1.7}
+    .block-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .drawer{display:none;padding:18px;position:sticky;top:18px}
+    .drawer.open{display:block}
+    .drawer-box{padding:14px;border-radius:16px;background:#f8fbfd;border:1px solid #edf3f6;min-height:220px}
+    .drawer-box h4{margin:0 0 8px;font-size:15px}
+    .drawer-box p{margin:0;white-space:pre-wrap}
+    .empty{display:grid;place-items:center;min-height:260px;text-align:center;color:var(--muted);border:1px dashed #d8e3ea;border-radius:18px;background:rgba(255,255,255,.65);padding:20px}
+    .hidden{display:none!important}
+    .note{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.5}
+    @media (max-width:1080px){.home-grid,.workspace-grid{grid-template-columns:1fr}.drawer{position:static}}
+    @media (max-width:720px){.view{padding:16px}.topbar{flex-direction:column;align-items:stretch}.stat-row{grid-template-columns:1fr}.brand,.session-head{flex-direction:column;align-items:flex-start}.section,.drawer,.hero{padding:16px}}
+  </style>
+</head>
+<body>
+  <div class="view" id="homeView">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div><h1>DevLog</h1><p>세션 목록에서 시작해서, 구조화된 블록을 보고, 초안을 여는 작업 공간</p></div>
+        </div>
+        <div class="actions">
+          <button class="btn">동기화 상태</button>
+          <button class="btn primary">새로고침</button>
+        </div>
+      </div>
+      <div class="hero">
+        <span class="eyebrow">Home</span>
+        <h2>홈은 세션만 보여준다. 블록은 들어가서 확인한다.</h2>
+        <p>DevTalk 세션의 메타 정보만 먼저 보고, 세션을 누르면 분석된 블록과 미구조화 메시지의 구조화 과정을 확인한다.</p>
+      </div>
+      <div class="home-grid">
+        <article class="panel section">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px"><div><h3>DevTalk 세션</h3><p>세션만 선택한다.</p></div><span class="chip blue">세션 목록</span></div>
+          <div class="list" id="homeList">
+            <button class="session active" data-session="s1"><div class="session-head"><div><h4 class="session-title">JWT 만료 후 재로그인 흐름 정리</h4><div class="session-meta"><span>session-2026-0406-01</span><span>메시지 42개</span></div></div><span class="chip green">진행중</span></div><div class="session-meta"><span>최종 동기화 10분 전</span><span>미구조화 3개</span></div></button>
+            <button class="session" data-session="s2"><div class="session-head"><div><h4 class="session-title">이미지 업로드 413 에러 대응</h4><div class="session-meta"><span>session-2026-0405-09</span><span>메시지 28개</span></div></div><span class="chip amber">분석 완료</span></div><div class="session-meta"><span>최종 동기화 1시간 전</span><span>미구조화 0개</span></div></button>
+            <button class="session" data-session="s3"><div class="session-head"><div><h4 class="session-title">알림 배치 중복 실행 방지</h4><div class="session-meta"><span>session-2026-0404-03</span><span>메시지 51개</span></div></div><span class="chip blue">초안 준비</span></div><div class="session-meta"><span>최종 동기화 2시간 전</span><span>미구조화 5개</span></div></button>
+          </div>
+        </article>
+        <article class="panel section">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px"><div><h3>선택된 세션 정보</h3><p>홈에서는 정보만 보여준다.</p></div><span class="chip blue" id="selectedChip">선택됨: session-2026-0406-01</span></div>
+          <div class="stat-row">
+            <div class="stat"><strong>세션 제목</strong><span id="homeTitle">JWT 만료 후 재로그인 흐름 정리</span></div>
+            <div class="stat"><strong>메시지 수</strong><span id="homeCount">42개</span></div>
+            <div class="stat"><strong>마지막 동기화</strong><span id="homeSync">10분 전</span></div>
+            <div class="stat"><strong>상태</strong><span id="homeStatus">분석 대기 3개</span></div>
+          </div>
+          <div class="note">세션을 선택하면 상세 화면으로 이동한다. 상세 화면에서는 블록을 선택하고, 마지막에 초안을 여는 흐름만 남긴다.</div>
+          <div class="actions" style="margin-top:14px"><button class="btn primary" id="enterBtn">세션 들어가기</button></div>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="detailView">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <button class="btn" id="backBtn">← 세션 목록</button>
+          <div><h1 id="detailTitle">JWT 만료 후 재로그인 흐름 정리</h1><p id="detailMeta">session-2026-0406-01 · 메시지 42개 · 미구조화 3개</p></div>
+        </div>
+        <div class="actions">
+          <span class="chip green" id="syncChip">동기화 완료</span>
+          <button class="btn" id="checkBtn">메시지 다시 확인</button>
+          <button class="btn primary" id="writeTopBtn" disabled>글 생성</button>
+          <button class="btn" id="toggleDrawerBtn">초안 열기</button>
+        </div>
+      </div>
+
+      <div class="workspace-grid" style="position:relative">
+        <article class="panel section">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px"><div><h3>분석 블록</h3><p>동기화가 끝나면 블록을 직접 선택한다.</p></div><span class="chip amber" id="analysisChip">구조화 진행중</span></div>
+
+          <div class="status">
+            <strong>메시지 동기화</strong>
+            <p id="syncText">DevTalk에서 메시지를 가져오는 중이다. 아직 블록에 들어가지 않은 메시지가 있으면 이 단계에서 구조화된다.</p>
+            <div class="progress"><span id="progressBar"></span></div>
+          </div>
+
+          <div class="analysis" id="analysis">
+            <div style="display:flex;gap:14px;align-items:center">
+              <div class="spinner"></div>
+              <div>
+                <strong style="display:block;margin-bottom:4px">분석중</strong>
+                <span id="loadingText" style="color:var(--muted);font-size:13px;line-height:1.55">아직 연결되지 않은 메시지가 있어서 모든 메시지가 블록으로 들어갈 때까지 기다린다.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button class="btn" id="restructureBtn" disabled>블록 다시 구조화</button>
+            <button class="btn" id="selectAllBtn" disabled>전체 선택</button>
+            <button class="btn" id="clearBtn" disabled>선택 해제</button>
+          </div>
+
+          <div class="blocks hidden" id="blockList">
+            <div class="block selected">
+              <div class="block-top"><div><h4>문제. 로그인 후 리다이렉트가 반복되는 원인</h4><p>message 1281 · message 1284</p></div><span class="chip blue">선택됨</span></div>
+              <div class="block-body">refresh 토큰이 갱신되었는데도 기존 라우터 상태가 남아 있어서 같은 요청이 반복되었다.</div>
+              <div class="block-tags"><span class="chip blue">PROBLEM</span><span class="chip blue">CAUSE</span></div>
+            </div>
+            <div class="block selected">
+              <div class="block-top"><div><h4>해결. 세션 초기화와 재시도 제한</h4><p>message 1287 · message 1290</p></div><span class="chip green">선택됨</span></div>
+              <div class="block-body">refresh 실패 시 세션 저장소를 먼저 비우고, 재시도는 한 번만 허용하도록 흐름을 바꿨다.</div>
+              <div class="block-tags"><span class="chip green">SOLUTION</span><span class="chip green">TRIAL</span></div>
+            </div>
+            <div class="block">
+              <div class="block-top"><div><h4>검증. 실제 사용자 흐름으로 재현</h4><p>message 1294 · message 1298</p></div><span class="chip amber">미선택</span></div>
+              <div class="block-body">정상 로그인과 실패 로그인을 반복하면서 상태 초기화 순서가 맞는지 확인했다.</div>
+              <div class="block-tags"><span class="chip amber">VERIFICATION</span></div>
+            </div>
+          </div>
+
+          <div class="overlay active" id="overlay">
+            <div class="overlay-card">
+              <div class="spinner" style="margin:0 auto 12px"></div>
+              <h4>세션 메시지를 블록으로 정리하는 중</h4>
+              <p>미구조화 메시지가 남아 있어서 전체 메시지를 블록에 넣을 때까지 분석중이다.</p>
+              <div class="note">완료되면 블록을 직접 선택하고 글 생성으로 넘어간다.</div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="drawer" id="drawer">
+          <div class="draft">
+            <div class="draft-head">
+              <div><h3>블로그 초안</h3><p>블록 선택 후 글 생성 버튼을 누르면 초안을 볼 수 있다.</p></div>
+              <span class="chip blue" id="countChip">선택 2개</span>
+            </div>
+            <div class="empty" id="draftEmpty">분석이 끝나면 초안이 표시된다.<br>먼저 블록을 선택한다.</div>
+            <div class="drawer-box hidden" id="draftBox">
+              <h4 id="draftTitle">JWT 만료 후 재로그인 흐름 정리</h4>
+              <p id="draftText"></p>
+            </div>
+            <div class="actions" style="margin-top:14px">
+              <button class="btn" id="copyBtn" disabled>초안 복사</button>
+              <button class="btn primary" id="writeBtn" disabled>글 생성</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessions={s1:{title:'JWT 만료 후 재로그인 흐름 정리',sessionId:'session-2026-0406-01',count:'42개',sync:'10분 전',status:'분석 대기 3개',syncText:'DevTalk에서 메시지를 가져왔고 아직 구조화되지 않은 메시지 3개가 남아 있다.',loadingText:'남은 메시지를 모두 블록으로 바꾸는 중이다. 완료되면 선택 가능한 블록이 나타난다.',draft:['# JWT 만료 후 재로그인 흐름 정리','','이번 세션에서는 토큰 만료 이후 반복 리다이렉트가 발생하는 문제를 정리했다.','','- 문제: 만료된 토큰 이후에도 이전 라우터 상태가 남아 있었다.','- 해결: 세션 초기화를 먼저 수행하고 재시도를 한 번으로 제한했다.','- 검증: 정상/실패 시나리오를 번갈아 실행하며 상태 전환을 확인했다.'].join('\n')},s2:{title:'이미지 업로드 413 에러 대응',sessionId:'session-2026-0405-09',count:'28개',sync:'1시간 전',status:'분석 완료',syncText:'모든 메시지가 동기화되어 있다. 블록 구조도 이미 생성된 상태다.',loadingText:'이 세션은 구조화가 끝났다. 바로 블록을 선택하고 초안을 만든다.',draft:['# 이미지 업로드 413 에러 대응','','이미지 용량이 큰 경우 서버가 요청을 거절하는 상황을 정리했다.','','- 문제: 업로드 직전 용량 체크가 없어 실패가 늦게 드러났다.','- 해결: 클라이언트에서 먼저 용량을 검사하고 실패 메시지를 정리했다.','- 검증: 브라우저와 서버 양쪽에서 동일한 기준으로 재현을 확인했다.'].join('\n')},s3:{title:'알림 배치 중복 실행 방지',sessionId:'session-2026-0404-03',count:'51개',sync:'2시간 전',status:'미구조화 5개',syncText:'세션 메시지가 모두 모였지만 일부는 아직 블록에 들어가지 않았다.',loadingText:'남은 메시지를 모두 블록으로 묶는 중이다. 완료 후 선택 가능한 상태가 된다.',draft:['# 알림 배치 중복 실행 방지','','배치 시작 시간이 겹칠 때 같은 알림이 여러 번 발송되는 문제를 정리했다.','','- 문제: 락 실패와 재시도 정책이 분리되어 있지 않았다.','- 해결: 배치 상태와 알림 큐 상태를 나누고 재실행 기준을 정리했다.','- 검증: 재실행 시나리오를 기준으로 로그 포맷까지 맞췄다.'].join('\n')}};
+    const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+    const homeView=$('#homeView'),detailView=$('#detailView'),homeList=$('#homeList'),selectedChip=$('#selectedChip'),homeTitle=$('#homeTitle'),homeCount=$('#homeCount'),homeSync=$('#homeSync'),homeStatus=$('#homeStatus'),enterBtn=$('#enterBtn'),backBtn=$('#backBtn'),detailTitle=$('#detailTitle'),detailMeta=$('#detailMeta'),syncChip=$('#syncChip'),syncText=$('#syncText'),progressBar=$('#progressBar'),analysisChip=$('#analysisChip'),analysis=$('#analysis'),loadingText=$('#loadingText'),overlay=$('#overlay'),restructureBtn=$('#restructureBtn'),selectAllBtn=$('#selectAllBtn'),clearBtn=$('#clearBtn'),blockList=$('#blockList'),countChip=$('#countChip'),draftEmpty=$('#draftEmpty'),draftBox=$('#draftBox'),draftTitle=$('#draftTitle'),draftText=$('#draftText'),writeBtn=$('#writeBtn'),writeTopBtn=$('#writeTopBtn'),copyBtn=$('#copyBtn'),drawer=$('#drawer'),toggleDrawerBtn=$('#toggleDrawerBtn');
+    let current=sessions.s1,ready=false,draftReady=false,timer=0,drawerOpen=false;
+    const setView=v=>{homeView.classList.toggle('hidden',false);detailView.classList.toggle('active',v==='detail');homeView.classList.toggle('active',v==='home')};
+    const selectedBlocks=()=>Array.from(blockList.querySelectorAll('.block.selected'));
+    const updateCount=()=>{const c=selectedBlocks().length;countChip.textContent=`선택 ${c}개`;writeBtn.disabled=writeTopBtn.disabled=!ready||!c;copyBtn.disabled=!draftReady}
+    const selectHome=k=>{homeList.querySelectorAll('.session').forEach(btn=>btn.classList.toggle('active',btn.dataset.session===k));current=sessions[k];selectedChip.textContent=`선택됨: ${current.sessionId}`;homeTitle.textContent=current.title;homeCount.textContent=current.count;homeSync.textContent=current.sync;homeStatus.textContent=current.status;enterBtn.dataset.session=k}
+    const openDrawer=()=>{drawer.classList.add('open');drawerOpen=true;toggleDrawerBtn.textContent='초안 닫기'}
+    const closeDrawer=()=>{drawer.classList.remove('open');drawerOpen=false;toggleDrawerBtn.textContent='초안 열기'}
+    const reveal=()=>{ready=true;overlay.classList.remove('active');analysis.classList.remove('active');blockList.classList.remove('hidden');restructureBtn.disabled=selectAllBtn.disabled=clearBtn.disabled=false;analysisChip.textContent='블록 선택 가능';analysisChip.className='chip blue';syncChip.textContent='분석 완료';syncChip.className='chip green';progressBar.style.width='100%';syncText.textContent='모든 메시지가 블록으로 구조화되었다. 이제 글에 넣을 블록을 선택할 수 있다.';loadingText.textContent='분석이 끝났다. 이제 선택된 블록으로 초안을 만든다.';updateCount()}
+    function openSession(k){selectHome(k);detailTitle.textContent=current.title;detailMeta.textContent=`${current.sessionId} · ${current.count} · 미구조화 정보 확인 중`;syncText.textContent=current.syncText;loadingText.textContent=current.loadingText;overlay.classList.add('active');analysis.classList.add('active');blockList.classList.add('hidden');draftEmpty.classList.remove('hidden');draftBox.classList.add('hidden');draftReady=ready=false;writeBtn.disabled=writeTopBtn.disabled=copyBtn.disabled=true;writeBtn.textContent=writeTopBtn.textContent='글 생성';analysisChip.textContent='구조화 진행중';analysisChip.className='chip amber';syncChip.textContent='분석중';syncChip.className='chip amber';progressBar.style.width='36%';setView('detail');openDrawer();clearTimeout(timer);timer=setTimeout(reveal,1800)}
+    homeList.addEventListener('click',e=>{const btn=e.target.closest('.session');if(btn)selectHome(btn.dataset.session)});
+    enterBtn.addEventListener('click',()=>openSession(enterBtn.dataset.session||'s1'));
+    backBtn.addEventListener('click',()=>{detailView.classList.remove('active');homeView.classList.add('active')});
+    toggleDrawerBtn.addEventListener('click',()=>drawerOpen?closeDrawer():openDrawer());
+    blockList.addEventListener('click',e=>{if(!ready)return;const block=e.target.closest('.block');if(!block)return;block.classList.toggle('selected');const chip=block.querySelector('.chip');if(block.classList.contains('selected')){chip.textContent='선택됨';chip.className='chip blue'}else{chip.textContent='미선택';chip.className='chip amber'}updateCount()});
+    selectAllBtn.addEventListener('click',()=>{if(!ready)return;blockList.querySelectorAll('.block').forEach(block=>{block.classList.add('selected');const chip=block.querySelector('.chip');chip.textContent='선택됨';chip.className='chip blue'});updateCount()});
+    clearBtn.addEventListener('click',()=>{if(!ready)return;blockList.querySelectorAll('.block').forEach(block=>{block.classList.remove('selected');const chip=block.querySelector('.chip');chip.textContent='미선택';chip.className='chip amber'});draftReady=false;draftBox.classList.add('hidden');draftEmpty.classList.remove('hidden');draftEmpty.innerHTML='블록을 다시 선택한 뒤 <br>글 생성 버튼을 눌러야 초안이 만들어진다.';updateCount()});
+    function makeDraft(){if(!ready||selectedBlocks().length===0)return;const titles=selectedBlocks().map(block=>block.querySelector('h4').textContent||'');draftTitle.textContent=current.title;draftText.textContent=`${current.draft}\n\n선택된 블록: ${titles.join(', ')}`;draftEmpty.classList.add('hidden');draftBox.classList.remove('hidden');draftReady=true;copyBtn.disabled=false;analysisChip.textContent='블록 선택 완료';analysisChip.className='chip green';writeBtn.textContent=writeTopBtn.textContent='초안 다시 생성';updateCount();if(!drawerOpen)openDrawer()}
+    writeBtn.addEventListener('click',makeDraft);writeTopBtn.addEventListener('click',makeDraft);
+    copyBtn.addEventListener('click',async()=>{if(!draftReady)return;try{await navigator.clipboard.writeText(draftBox.querySelector('p').textContent||'');copyBtn.textContent='복사 완료';setTimeout(()=>copyBtn.textContent='초안 복사',1000)}catch(e){copyBtn.textContent='복사 실패';setTimeout(()=>copyBtn.textContent='초안 복사',1000)}});
+    restructureBtn.addEventListener('click',()=>{if(!ready)return;analysisChip.textContent='재구조화 중';analysisChip.className='chip amber';syncChip.textContent='재분석 중';syncChip.className='chip amber';overlay.classList.add('active');analysis.classList.add('active');progressBar.style.width='55%';syncText.textContent='새로 확인된 메시지를 블록에 편입하고 있다.';loadingText.textContent='아직 남아 있는 메시지를 다시 블록으로 묶는 중이다.';blockList.classList.add('hidden');ready=false;writeBtn.disabled=writeTopBtn.disabled=true;clearTimeout(timer);timer=setTimeout(()=>{overlay.classList.remove('active');ready=true;blockList.classList.remove('hidden');progressBar.style.width='100%';analysisChip.textContent='블록 선택 가능';analysisChip.className='chip blue';syncChip.textContent='분석 완료';syncChip.className='chip green';updateCount()},1600)});
+    selectHome('s1');updateCount();
+  </script>
+</body>
+</html>

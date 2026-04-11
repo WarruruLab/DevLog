@@ -1,0 +1,141 @@
+import type { SessionBlock, SessionDetail, SessionSummary } from './types'
+
+const now = '2026-04-11T20:20:00'
+
+export const mockSessions: SessionSummary[] = [
+  {
+    sessionId: 'session-2026-0406-01',
+    sourceSessionId: 'session-2026-0406-01',
+    title: 'JWT 만료 후 로그인 리다이렉트 정리',
+    sessionStatus: 'READY',
+    syncStatus: 'COMPLETED',
+    analysisStatus: 'RUNNING',
+    totalMessageCount: 42,
+    syncedMessageCount: 42,
+    structuredMessageCount: 29,
+    unstructuredMessageCount: 13,
+    blockCount: 2,
+    lastMessageAt: now,
+    lastSyncedAt: now,
+    lastAnalyzedAt: now,
+  },
+  {
+    sessionId: 'session-2026-0405-09',
+    sourceSessionId: 'session-2026-0405-09',
+    title: '이미지 업로드 413 에러 대응',
+    sessionStatus: 'READY',
+    syncStatus: 'COMPLETED',
+    analysisStatus: 'COMPLETED',
+    totalMessageCount: 28,
+    syncedMessageCount: 28,
+    structuredMessageCount: 28,
+    unstructuredMessageCount: 0,
+    blockCount: 3,
+    lastMessageAt: '2026-04-10T18:00:00',
+    lastSyncedAt: '2026-04-10T18:10:00',
+    lastAnalyzedAt: '2026-04-10T18:16:00',
+  },
+  {
+    sessionId: 'session-2026-0404-03',
+    sourceSessionId: 'session-2026-0404-03',
+    title: '알림 배치 중복 실행 방지',
+    sessionStatus: 'READY',
+    syncStatus: 'COMPLETED',
+    analysisStatus: 'FAILED',
+    totalMessageCount: 51,
+    syncedMessageCount: 51,
+    structuredMessageCount: 12,
+    unstructuredMessageCount: 39,
+    blockCount: 1,
+    lastMessageAt: '2026-04-09T15:00:00',
+    lastSyncedAt: '2026-04-09T15:10:00',
+    lastAnalyzedAt: '2026-04-09T15:12:00',
+  },
+]
+
+export const mockSessionDetails: Record<string, SessionDetail> = {
+  'session-2026-0406-01': {
+    ...mockSessions[0],
+    syncErrorMessage: null,
+    analysisErrorMessage: null,
+  },
+  'session-2026-0405-09': {
+    ...mockSessions[1],
+    syncErrorMessage: null,
+    analysisErrorMessage: null,
+  },
+  'session-2026-0404-03': {
+    ...mockSessions[2],
+    syncErrorMessage: null,
+    analysisErrorMessage: '실시간 append 도중 MCP 응답이 중단되었습니다.',
+  },
+}
+
+export const mockBlocks: Record<string, SessionBlock[]> = {
+  'session-2026-0406-01': [
+    {
+      blockId: 301,
+      sessionId: 'session-2026-0406-01',
+      sequenceNo: 1,
+      blockType: 'PROBLEM',
+      title: '문제 재현과 토큰 만료 조건 확인',
+      summary: '토큰 만료 직후에도 이전 세션 상태가 남아 반복 리다이렉트가 발생한 구간입니다.',
+      sourceMessageCount: 4,
+      messageIds: ['1281', '1282', '1283', '1284'],
+    },
+    {
+      blockId: 302,
+      sessionId: 'session-2026-0406-01',
+      sequenceNo: 2,
+      blockType: 'SOLUTION',
+      title: '세션 초기화 순서 재구성',
+      summary: 'refresh 실패 시 세션 저장소를 먼저 비우고 단일 재시도로 제한하는 안을 정리했습니다.',
+      sourceMessageCount: 3,
+      messageIds: ['1287', '1288', '1289'],
+    },
+  ],
+  'session-2026-0405-09': [
+    {
+      blockId: 401,
+      sessionId: 'session-2026-0405-09',
+      sequenceNo: 1,
+      blockType: 'PROBLEM',
+      title: '413 에러 원인 정리',
+      summary: '용량 초과 이미지가 서버까지 그대로 올라가며 곧바로 요청이 거절되었습니다.',
+      sourceMessageCount: 3,
+      messageIds: ['940', '942', '943'],
+    },
+    {
+      blockId: 402,
+      sessionId: 'session-2026-0405-09',
+      sequenceNo: 2,
+      blockType: 'SOLUTION',
+      title: '클라이언트 사전 검증 추가',
+      summary: '업로드 전 파일 크기를 점검하고 사용자에게 즉시 피드백하는 흐름을 정했습니다.',
+      sourceMessageCount: 5,
+      messageIds: ['946', '947', '948', '949', '950'],
+    },
+    {
+      blockId: 403,
+      sessionId: 'session-2026-0405-09',
+      sequenceNo: 3,
+      blockType: 'VERIFICATION',
+      title: '정상 및 실패 시나리오 검증',
+      summary: '브라우저와 서버 로그 기준으로 정상 업로드와 초과 업로드를 모두 재현했습니다.',
+      sourceMessageCount: 4,
+      messageIds: ['952', '953', '954', '955'],
+    },
+  ],
+  'session-2026-0404-03': [
+    {
+      blockId: 501,
+      sessionId: 'session-2026-0404-03',
+      sequenceNo: 1,
+      blockType: 'PROBLEM',
+      title: '중복 배치 실행 현상 기록',
+      summary: '배치 시작 시간이 겹칠 때 동일 알림이 여러 번 발송되는 현상을 정리했습니다.',
+      sourceMessageCount: 5,
+      messageIds: ['700', '701', '702', '703', '704'],
+    },
+  ],
+}

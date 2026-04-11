@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevLog - Concept A</title>
+  <style>
+    :root{
+      --bg:#f5f7fa;
+      --panel:#ffffff;
+      --line:#d7e0e8;
+      --line-strong:#c6d2dd;
+      --text:#1f2d38;
+      --muted:#6b7b88;
+      --blue:#4a90e2;
+      --blue-soft:#edf5ff;
+      --green:#1f7d45;
+      --green-soft:#eef9f2;
+      --amber:#9b6d00;
+      --amber-soft:#fff7e5;
+      --shadow:0 4px 14px rgba(31,45,56,.04);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-width:320px;min-height:100%;background:var(--bg);color:var(--text);font-family:"Pretendard","Apple SD Gothic Neo",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button{font:inherit;cursor:pointer}
+    .view{display:none;min-height:100vh;padding:18px}
+    .view.active{display:block}
+    .shell{max-width:1320px;margin:0 auto}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#5ea3eb,#2f74c8)}
+    .brand h1{margin:0;font-size:20px;letter-spacing:-.02em}
+    .brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
+    .actions,.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{min-height:38px;padding:0 13px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);font-weight:600}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn.ghost{background:#f8fbfd}
+    .layout-home{display:grid;grid-template-columns:minmax(360px,.96fr) minmax(0,1.04fr);gap:14px}
+    .layout-detail{display:grid;grid-template-columns:minmax(0,1.4fr) 340px;gap:14px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 16px 0}
+    .panel-head h2,.panel-head h3{margin:0;font-size:15px}
+    .panel-head p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+    .panel-body{padding:16px}
+    .chip{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .chip.blue{background:var(--blue-soft);color:var(--blue)}
+    .chip.green{background:var(--green-soft);color:var(--green)}
+    .chip.amber{background:var(--amber-soft);color:var(--amber)}
+    .session-list,.block-list{display:grid;gap:8px}
+    .session{width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);background:#fff;text-align:left}
+    .session.active{border-color:var(--line-strong);box-shadow:inset 0 0 0 1px var(--blue);background:#fbfdff}
+    .session-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+    .session-title{margin:0;font-size:14px;line-height:1.45}
+    .session-meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px}
+    .compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .metric{padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafcfd}
+    .metric strong{display:block;margin-bottom:4px;color:var(--muted);font-size:11px;text-transform:uppercase}
+    .metric span{font-size:14px}
+    .note{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.55}
+    .status-strip{display:grid;grid-template-columns:180px 1fr auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:#fbfdff;border-top-left-radius:var(--radius);border-top-right-radius:var(--radius)}
+    .status-strip strong{font-size:13px}
+    .status-strip p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+    .progress{height:6px;border-radius:999px;background:#eaf1f6;overflow:hidden}
+    .progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#5ea3eb,#2f74c8);transition:width .35s}
+    .sync-inline{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--line);background:#fff}
+    .spinner{width:18px;height:18px;border-radius:50%;border:2px solid #d6e7fb;border-top-color:var(--blue);animation:spin .9s linear infinite;flex:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sync-inline strong{display:block;font-size:13px;margin-bottom:4px}
+    .sync-inline p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+    .work-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+    .work-head h2{margin:0;font-size:18px;letter-spacing:-.02em}
+    .work-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
+    .block{padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer}
+    .block.selected{border-color:var(--blue);background:#f8fbff}
+    .block-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+    .block-top h4{margin:0;font-size:14px;line-height:1.45}
+    .block-top p,.block-body{margin:0;color:#394b58;font-size:13px;line-height:1.65}
+    .block-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .draft-panel{position:sticky;top:18px;padding:16px}
+    .draft-panel h3{margin:0;font-size:15px}
+    .draft-panel p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+    .draft-box,.draft-empty{margin-top:14px;border-radius:12px;border:1px solid var(--line);background:#fafcfd;padding:14px;min-height:240px}
+    .draft-empty{display:grid;place-items:center;text-align:center;color:var(--muted)}
+    .draft-box h4{margin:0 0 8px;font-size:15px}
+    .draft-box p{margin:0;color:#394b58;font-size:13px;line-height:1.7;white-space:pre-wrap}
+    .hidden{display:none!important}
+    @media (max-width:1080px){
+      .layout-home,.layout-detail{grid-template-columns:1fr}
+      .draft-panel{position:static}
+      .status-strip{grid-template-columns:1fr}
+    }
+    @media (max-width:720px){
+      .view{padding:14px}
+      .topbar,.panel-head,.work-head,.session-top{flex-direction:column;align-items:flex-start}
+      .compact-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="view active" id="homeView">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div>
+            <h1>DevLog</h1>
+            <p>가장 단순한 운영형 화면. 홈은 선택만, 상세는 바로 작업.</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn ghost">동기화 상태</button>
+          <button class="btn primary">새 세션 가져오기</button>
+        </div>
+      </div>
+
+      <div class="layout-home">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>DevTalk 세션</h2>
+              <p>세션을 고른 뒤 상세 작업대로 이동합니다.</p>
+            </div>
+            <span class="chip blue">Selection</span>
+          </div>
+          <div class="panel-body">
+            <div class="session-list" id="homeList">
+              <button class="session active" data-session="s1">
+                <div class="session-top">
+                  <div>
+                    <h3 class="session-title">JWT 만료 후 반복 리다이렉트 문제 정리</h3>
+                    <div class="session-meta"><span>session-2026-0406-01</span><span>메시지 42개</span></div>
+                  </div>
+                  <span class="chip green">진행 중</span>
+                </div>
+                <div class="session-meta"><span>마지막 동기화 10분 전</span><span>미구조화 3개</span></div>
+              </button>
+              <button class="session" data-session="s2">
+                <div class="session-top">
+                  <div>
+                    <h3 class="session-title">이미지 업로드 413 에러 원인 추적</h3>
+                    <div class="session-meta"><span>session-2026-0405-09</span><span>메시지 28개</span></div>
+                  </div>
+                  <span class="chip amber">분석 완료</span>
+                </div>
+                <div class="session-meta"><span>마지막 동기화 1시간 전</span><span>미구조화 0개</span></div>
+              </button>
+              <button class="session" data-session="s3">
+                <div class="session-top">
+                  <div>
+                    <h3 class="session-title">배치 작업 중복 실행 방지 플로우</h3>
+                    <div class="session-meta"><span>session-2026-0404-03</span><span>메시지 51개</span></div>
+                  </div>
+                  <span class="chip blue">초안 준비</span>
+                </div>
+                <div class="session-meta"><span>마지막 동기화 2시간 전</span><span>미구조화 5개</span></div>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>선택 세션 요약</h2>
+              <p>홈에서는 블록을 보여주지 않습니다.</p>
+            </div>
+            <span class="chip blue" id="selectedChip">session-2026-0406-01</span>
+          </div>
+          <div class="panel-body">
+            <div class="compact-grid">
+              <div class="metric"><strong>세션 제목</strong><span id="homeTitle">JWT 만료 후 반복 리다이렉트 문제 정리</span></div>
+              <div class="metric"><strong>메시지 수</strong><span id="homeCount">42개</span></div>
+              <div class="metric"><strong>마지막 동기화</strong><span id="homeSync">10분 전</span></div>
+              <div class="metric"><strong>상태</strong><span id="homeStatus">미구조화 3개</span></div>
+            </div>
+            <div class="note">이 안은 가장 실무형에 가깝습니다. 불필요한 강조를 줄이고, 세션 선택 후 바로 상세 작업대로 들어가는 흐름만 남겼습니다.</div>
+            <div class="actions" style="margin-top:14px">
+              <button class="btn primary" id="enterBtn">세션 열기</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="detailView">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <button class="btn ghost" id="backBtn">세션 목록</button>
+          <div>
+            <h1 id="detailTitle">JWT 만료 후 반복 리다이렉트 문제 정리</h1>
+            <p id="detailMeta">session-2026-0406-01 · 메시지 42개 · 미구조화 3개</p>
+          </div>
+        </div>
+        <div class="actions">
+          <span class="chip amber" id="syncChip">분석 중</span>
+          <button class="btn ghost" id="checkBtn">다시 확인</button>
+          <button class="btn primary" id="writeTopBtn" disabled>글 생성</button>
+        </div>
+      </div>
+
+      <div class="layout-detail">
+        <section class="panel">
+          <div class="status-strip">
+            <div>
+              <strong>메시지 구조화 상태</strong>
+              <p id="syncText">아직 블록에 들어가지 않은 메시지를 정리하고 있습니다.</p>
+            </div>
+            <div class="progress"><span id="progressBar"></span></div>
+            <span class="chip amber" id="analysisChip">선택 대기</span>
+          </div>
+
+          <div class="sync-inline" id="loading">
+            <div class="spinner"></div>
+            <div>
+              <strong>분석 진행 중</strong>
+              <p id="loadingText">미구조화 메시지가 남아 있어 블록 선택은 잠시 비활성화됩니다.</p>
+            </div>
+          </div>
+
+          <div class="panel-body">
+            <div class="work-head">
+              <div>
+                <h2>분석 블록</h2>
+                <p>구조화가 끝나면 블록을 골라 글의 흐름을 만듭니다.</p>
+              </div>
+              <div class="toolbar">
+                <button class="btn ghost" id="restructureBtn" disabled>재구조화</button>
+                <button class="btn ghost" id="selectAllBtn" disabled>전체 선택</button>
+                <button class="btn ghost" id="clearBtn" disabled>선택 해제</button>
+              </div>
+            </div>
+
+            <div class="block-list hidden" id="blockList">
+              <div class="block selected">
+                <div class="block-top">
+                  <div>
+                    <h4>문제. refresh 이후 이전 세션 상태가 남아 있던 원인</h4>
+                    <p>message 1281 - message 1284</p>
+                  </div>
+                  <span class="chip blue">선택됨</span>
+                </div>
+                <div class="block-body">만료된 토큰으로 다시 요청하면서 로그인 리다이렉트가 반복됐다.</div>
+                <div class="block-tags"><span class="chip blue">PROBLEM</span><span class="chip blue">CAUSE</span></div>
+              </div>
+              <div class="block selected">
+                <div class="block-top">
+                  <div>
+                    <h4>해결. 세션 초기화 이후 재시도 순서로 플로우 수정</h4>
+                    <p>message 1287 - message 1290</p>
+                  </div>
+                  <span class="chip blue">선택됨</span>
+                </div>
+                <div class="block-body">세션 저장소를 먼저 비우고 재로그인 흐름을 한 번만 타도록 정리했다.</div>
+                <div class="block-tags"><span class="chip green">SOLUTION</span><span class="chip green">TRIAL</span></div>
+              </div>
+              <div class="block">
+                <div class="block-top">
+                  <div>
+                    <h4>검증. 실제 사용자 플로우로 재현 후 상태 전이 확인</h4>
+                    <p>message 1294 - message 1298</p>
+                  </div>
+                  <span class="chip amber">미선택</span>
+                </div>
+                <div class="block-body">정상 로그인과 실패 로그인을 반복하면서 화면 상태가 맞는지 확인했다.</div>
+                <div class="block-tags"><span class="chip amber">VERIFICATION</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel draft-panel">
+          <div>
+            <h3>블로그 초안</h3>
+            <p>이 안은 초안 패널을 항상 보이게 둬서 작업 상태를 바로 이해하게 만듭니다.</p>
+          </div>
+          <div class="draft-empty" id="draftEmpty">블록을 선택한 뒤<br>글 생성 버튼을 눌러 초안을 만듭니다.</div>
+          <div class="draft-box hidden" id="draftBox">
+            <h4 id="draftTitle">JWT 만료 후 반복 리다이렉트 문제 정리</h4>
+            <p id="draftText"></p>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn ghost" id="copyBtn" disabled>초안 복사</button>
+            <button class="btn primary" id="writeBtn" disabled>글 생성</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessions = {
+      s1: {
+        title: "JWT 만료 후 반복 리다이렉트 문제 정리",
+        sessionId: "session-2026-0406-01",
+        count: "42개",
+        sync: "10분 전",
+        status: "미구조화 3개",
+        meta: "session-2026-0406-01 · 메시지 42개 · 미구조화 3개",
+        syncText: "아직 블록에 들어가지 않은 메시지를 정리하고 있습니다.",
+        loadingText: "미구조화 메시지가 남아 있어 블록 선택은 잠시 비활성화됩니다.",
+        draft: [
+          "# JWT 만료 후 반복 리다이렉트 문제 정리",
+          "",
+          "이번 세션에서는 refresh 이후 반복 로그인 흐름이 생기던 원인을 정리했다.",
+          "",
+          "- 문제: 만료된 상태에서 이전 세션 정보가 남아 있었다.",
+          "- 해결: 세션 초기화 후 재로그인 순서를 다시 정의했다.",
+          "- 검증: 정상/실패 시나리오를 나눠 상태 전이를 확인했다."
+        ].join("\n")
+      },
+      s2: {
+        title: "이미지 업로드 413 에러 원인 추적",
+        sessionId: "session-2026-0405-09",
+        count: "28개",
+        sync: "1시간 전",
+        status: "미구조화 0개",
+        meta: "session-2026-0405-09 · 메시지 28개 · 미구조화 0개",
+        syncText: "모든 메시지가 이미 블록으로 정리된 상태입니다.",
+        loadingText: "바로 블록을 선택하고 초안 생성으로 넘어갈 수 있습니다.",
+        draft: [
+          "# 이미지 업로드 413 에러 원인 추적",
+          "",
+          "업로드 용량 제한이 화면과 서버에서 다르게 처리되던 문제를 정리했다.",
+          "",
+          "- 문제: 업로드 직전 검사가 없어 서버 에러가 바로 노출됐다.",
+          "- 해결: 클라이언트 선검사와 에러 문구를 정리했다.",
+          "- 검증: 동일 파일을 기준으로 재현 여부를 확인했다."
+        ].join("\n")
+      },
+      s3: {
+        title: "배치 작업 중복 실행 방지 플로우",
+        sessionId: "session-2026-0404-03",
+        count: "51개",
+        sync: "2시간 전",
+        status: "미구조화 5개",
+        meta: "session-2026-0404-03 · 메시지 51개 · 미구조화 5개",
+        syncText: "메시지 동기화는 완료됐지만 블록 연결이 남아 있습니다.",
+        loadingText: "남은 메시지를 블록에 연결하는 동안 선택을 잠시 막습니다.",
+        draft: [
+          "# 배치 작업 중복 실행 방지 플로우",
+          "",
+          "같은 작업이 두 번 실행되던 조건을 추적해 상태 전이를 정리했다.",
+          "",
+          "- 문제: 재시도와 완료 상태 분리가 약했다.",
+          "- 해결: 배치 상태와 알림 상태를 나눠 관리했다.",
+          "- 검증: 재시도 로그와 결과 로그를 함께 확인했다."
+        ].join("\n")
+      }
+    };
+
+    const $ = (s) => document.querySelector(s);
+    const homeView = $("#homeView");
+    const detailView = $("#detailView");
+    const homeList = $("#homeList");
+    const selectedChip = $("#selectedChip");
+    const homeTitle = $("#homeTitle");
+    const homeCount = $("#homeCount");
+    const homeSync = $("#homeSync");
+    const homeStatus = $("#homeStatus");
+    const enterBtn = $("#enterBtn");
+    const backBtn = $("#backBtn");
+    const detailTitle = $("#detailTitle");
+    const detailMeta = $("#detailMeta");
+    const syncChip = $("#syncChip");
+    const syncText = $("#syncText");
+    const progressBar = $("#progressBar");
+    const analysisChip = $("#analysisChip");
+    const loading = $("#loading");
+    const loadingText = $("#loadingText");
+    const restructureBtn = $("#restructureBtn");
+    const selectAllBtn = $("#selectAllBtn");
+    const clearBtn = $("#clearBtn");
+    const blockList = $("#blockList");
+    const draftEmpty = $("#draftEmpty");
+    const draftBox = $("#draftBox");
+    const draftTitle = $("#draftTitle");
+    const draftText = $("#draftText");
+    const writeBtn = $("#writeBtn");
+    const writeTopBtn = $("#writeTopBtn");
+    const copyBtn = $("#copyBtn");
+
+    let current = sessions.s1;
+    let ready = false;
+    let draftReady = false;
+    let timer = 0;
+
+    function showHome() {
+      homeView.classList.add("active");
+      detailView.classList.remove("active");
+    }
+
+    function showDetail() {
+      homeView.classList.remove("active");
+      detailView.classList.add("active");
+    }
+
+    function selectedBlocks() {
+      return Array.from(blockList.querySelectorAll(".block.selected"));
+    }
+
+    function updateCount() {
+      const count = selectedBlocks().length;
+      writeBtn.disabled = writeTopBtn.disabled = !ready || count === 0;
+      copyBtn.disabled = !draftReady;
+    }
+
+    function setHome(key) {
+      current = sessions[key];
+      homeList.querySelectorAll(".session").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.session === key);
+      });
+      selectedChip.textContent = current.sessionId;
+      homeTitle.textContent = current.title;
+      homeCount.textContent = current.count;
+      homeSync.textContent = current.sync;
+      homeStatus.textContent = current.status;
+      enterBtn.dataset.session = key;
+    }
+
+    function revealBlocks() {
+      ready = true;
+      loading.classList.add("hidden");
+      blockList.classList.remove("hidden");
+      progressBar.style.width = "100%";
+      syncChip.textContent = "분석 완료";
+      syncChip.className = "chip green";
+      analysisChip.textContent = "선택 가능";
+      analysisChip.className = "chip blue";
+      syncText.textContent = "모든 메시지가 블록으로 정리됐습니다. 이제 블록을 선택할 수 있습니다.";
+      loadingText.textContent = "분석이 끝났습니다. 원하는 블록만 골라 초안을 생성하세요.";
+      restructureBtn.disabled = false;
+      selectAllBtn.disabled = false;
+      clearBtn.disabled = false;
+      updateCount();
+    }
+
+    function openSession(key) {
+      setHome(key);
+      detailTitle.textContent = current.title;
+      detailMeta.textContent = current.meta;
+      syncText.textContent = current.syncText;
+      loadingText.textContent = current.loadingText;
+      draftEmpty.classList.remove("hidden");
+      draftBox.classList.add("hidden");
+      draftReady = false;
+      ready = false;
+      progressBar.style.width = "38%";
+      syncChip.textContent = "분석 중";
+      syncChip.className = "chip amber";
+      analysisChip.textContent = "선택 대기";
+      analysisChip.className = "chip amber";
+      writeBtn.textContent = "글 생성";
+      writeTopBtn.textContent = "글 생성";
+      loading.classList.remove("hidden");
+      blockList.classList.add("hidden");
+      restructureBtn.disabled = true;
+      selectAllBtn.disabled = true;
+      clearBtn.disabled = true;
+      updateCount();
+      showDetail();
+      clearTimeout(timer);
+      timer = setTimeout(revealBlocks, 1500);
+    }
+
+    function makeDraft() {
+      if (!ready || selectedBlocks().length === 0) return;
+      const titles = selectedBlocks().map((block) => block.querySelector("h4").textContent);
+      draftTitle.textContent = current.title;
+      draftText.textContent = `${current.draft}\n\n선택 블록: ${titles.join(", ")}`;
+      draftEmpty.classList.add("hidden");
+      draftBox.classList.remove("hidden");
+      draftReady = true;
+      writeBtn.textContent = "초안 다시 생성";
+      writeTopBtn.textContent = "초안 다시 생성";
+      updateCount();
+    }
+
+    homeList.addEventListener("click", (event) => {
+      const btn = event.target.closest(".session");
+      if (btn) setHome(btn.dataset.session);
+    });
+
+    enterBtn.addEventListener("click", () => openSession(enterBtn.dataset.session || "s1"));
+    backBtn.addEventListener("click", showHome);
+    writeBtn.addEventListener("click", makeDraft);
+    writeTopBtn.addEventListener("click", makeDraft);
+
+    blockList.addEventListener("click", (event) => {
+      if (!ready) return;
+      const block = event.target.closest(".block");
+      if (!block) return;
+      block.classList.toggle("selected");
+      const chip = block.querySelector(".block-top .chip");
+      if (block.classList.contains("selected")) {
+        chip.textContent = "선택됨";
+        chip.className = "chip blue";
+      } else {
+        chip.textContent = "미선택";
+        chip.className = "chip amber";
+      }
+      updateCount();
+    });
+
+    selectAllBtn.addEventListener("click", () => {
+      if (!ready) return;
+      blockList.querySelectorAll(".block").forEach((block) => {
+        block.classList.add("selected");
+        const chip = block.querySelector(".block-top .chip");
+        chip.textContent = "선택됨";
+        chip.className = "chip blue";
+      });
+      updateCount();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if (!ready) return;
+      blockList.querySelectorAll(".block").forEach((block) => {
+        block.classList.remove("selected");
+        const chip = block.querySelector(".block-top .chip");
+        chip.textContent = "미선택";
+        chip.className = "chip amber";
+      });
+      draftReady = false;
+      draftBox.classList.add("hidden");
+      draftEmpty.classList.remove("hidden");
+      writeBtn.textContent = "글 생성";
+      writeTopBtn.textContent = "글 생성";
+      updateCount();
+    });
+
+    restructureBtn.addEventListener("click", () => {
+      if (!ready) return;
+      ready = false;
+      loading.classList.remove("hidden");
+      blockList.classList.add("hidden");
+      progressBar.style.width = "56%";
+      syncChip.textContent = "재분석 중";
+      syncChip.className = "chip amber";
+      analysisChip.textContent = "선택 대기";
+      analysisChip.className = "chip amber";
+      syncText.textContent = "새로 들어온 메시지를 다시 구조화하고 있습니다.";
+      loadingText.textContent = "완료되면 다시 블록을 선택할 수 있습니다.";
+      restructureBtn.disabled = true;
+      selectAllBtn.disabled = true;
+      clearBtn.disabled = true;
+      writeBtn.disabled = true;
+      writeTopBtn.disabled = true;
+      clearTimeout(timer);
+      timer = setTimeout(revealBlocks, 1300);
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      if (!draftReady) return;
+      try {
+        await navigator.clipboard.writeText(draftText.textContent || "");
+        copyBtn.textContent = "복사 완료";
+        setTimeout(() => { copyBtn.textContent = "초안 복사"; }, 1000);
+      } catch (error) {
+        copyBtn.textContent = "복사 실패";
+        setTimeout(() => { copyBtn.textContent = "초안 복사"; }, 1000);
+      }
+    });
+
+    setHome("s1");
+    updateCount();
+  </script>
+</body>
+</html>
