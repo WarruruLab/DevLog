@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -28,9 +29,9 @@ public class JdbcSessionBlockRepository implements SessionBlockRepository {
     public Long save(SessionBlock block) {
         String sql = """
             INSERT INTO session_block (
-                session_id, sequence_no, block_type, title, summary, content_json,
+                session_id, external_block_id, sequence_no, block_type, title, summary, content_json,
                 status, source_message_count, message_start_at, message_end_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -43,20 +44,54 @@ public class JdbcSessionBlockRepository implements SessionBlockRepository {
         jdbcTemplate.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql, new String[]{"block_id"});
             ps.setString(1, block.getSessionId());
-            ps.setInt(2, sequenceNo);
-            ps.setString(3, blockType);
-            ps.setString(4, block.getTitle());
-            ps.setString(5, summary);
-            ps.setString(6, block.getContentJson());
-            ps.setString(7, status);
-            ps.setInt(8, sourceMessageCount);
-            ps.setTimestamp(9, toTimestamp(block.getMessageStartAt()));
-            ps.setTimestamp(10, toTimestamp(block.getMessageEndAt()));
+            ps.setString(2, block.getExternalBlockId());
+            ps.setInt(3, sequenceNo);
+            ps.setString(4, blockType);
+            ps.setString(5, block.getTitle());
+            ps.setString(6, summary);
+            ps.setString(7, block.getContentJson());
+            ps.setString(8, status);
+            ps.setInt(9, sourceMessageCount);
+            ps.setTimestamp(10, toTimestamp(block.getMessageStartAt()));
+            ps.setTimestamp(11, toTimestamp(block.getMessageEndAt()));
             return ps;
         }, keyHolder);
 
         Number key = keyHolder.getKey();
         return key != null ? key.longValue() : null;
+    }
+
+    @Override
+    public void update(SessionBlock block) {
+        String sql = """
+            UPDATE session_block
+            SET external_block_id = ?,
+                sequence_no = ?,
+                block_type = ?,
+                title = ?,
+                summary = ?,
+                content_json = ?,
+                status = ?,
+                source_message_count = ?,
+                message_start_at = ?,
+                message_end_at = ?
+            WHERE block_id = ?
+            """;
+
+        jdbcTemplate.update(
+            sql,
+            block.getExternalBlockId(),
+            block.getSequenceNo(),
+            defaultString(block.getBlockType(), "PROBLEM"),
+            block.getTitle(),
+            defaultString(block.getSummary(), block.getTitle()),
+            block.getContentJson(),
+            defaultString(block.getStatus(), "ACTIVE"),
+            block.getSourceMessageCount() != null ? block.getSourceMessageCount() : 0,
+            toTimestamp(block.getMessageStartAt()),
+            toTimestamp(block.getMessageEndAt()),
+            block.getBlockId()
+        );
     }
 
     @Override
@@ -68,6 +103,36 @@ public class JdbcSessionBlockRepository implements SessionBlockRepository {
             ORDER BY sequence_no ASC, block_id ASC
             """;
         return jdbcTemplate.query(sql, sessionBlockRowMapper, sessionId);
+    }
+
+    @Override
+    public Optional<SessionBlock> findByExternalBlockId(String sessionId, String externalBlockId) {
+        String sql = """
+            SELECT *
+            FROM session_block
+            WHERE session_id = ?
+              AND external_block_id = ?
+            ORDER BY sequence_no ASC, block_id ASC
+            LIMIT 1
+            """;
+        return jdbcTemplate.query(sql, sessionBlockRowMapper, sessionId, externalBlockId)
+            .stream()
+            .findFirst();
+    }
+
+    @Override
+    public Optional<SessionBlock> findActiveBlockBySessionId(String sessionId) {
+        String sql = """
+            SELECT *
+            FROM session_block
+            WHERE session_id = ?
+              AND status = 'ACTIVE'
+            ORDER BY sequence_no ASC, block_id ASC
+            LIMIT 1
+            """;
+        return jdbcTemplate.query(sql, sessionBlockRowMapper, sessionId)
+            .stream()
+            .findFirst();
     }
 
     @Override
@@ -106,6 +171,7 @@ public class JdbcSessionBlockRepository implements SessionBlockRepository {
             save(new SessionBlock(
                 block.getBlockId(),
                 sessionId,
+                block.getExternalBlockId(),
                 sequenceNo,
                 block.getBlockType(),
                 block.getTitle(),
@@ -131,6 +197,7 @@ public class JdbcSessionBlockRepository implements SessionBlockRepository {
     private final RowMapper<SessionBlock> sessionBlockRowMapper = (rs, rowNum) -> new SessionBlock(
         rs.getLong("block_id"),
         rs.getString("session_id"),
+        rs.getString("external_block_id"),
         rs.getInt("sequence_no"),
         rs.getString("block_type"),
         rs.getString("title"),

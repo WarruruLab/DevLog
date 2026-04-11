@@ -59,6 +59,18 @@ public class JdbcSessionBlockMessageRepository implements SessionBlockMessageRep
     }
 
     @Override
+    public boolean existsBlockMessage(Long blockId, String messageId) {
+        String sql = """
+            SELECT COUNT(*)
+            FROM session_block_message
+            WHERE block_id = ?
+              AND message_id = ?
+            """;
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, blockId, messageId);
+        return count != null && count > 0;
+    }
+
+    @Override
     public void deleteBySessionId(String sessionId) {
         jdbcTemplate.update("DELETE FROM session_block_message WHERE session_id = ?", sessionId);
     }

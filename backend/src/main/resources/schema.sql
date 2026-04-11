@@ -3,6 +3,7 @@
 -- 1. Drop existing tables
 DROP TABLE IF EXISTS draft_block;
 DROP TABLE IF EXISTS draft;
+DROP TABLE IF EXISTS mcp_ingest_event;
 DROP TABLE IF EXISTS session_block_message;
 DROP TABLE IF EXISTS session_block;
 DROP TABLE IF EXISTS session_message;
@@ -55,6 +56,7 @@ CREATE TABLE session_message (
 CREATE TABLE session_block (
     block_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     session_id VARCHAR(255) NOT NULL,
+    external_block_id VARCHAR(255) NULL,
     sequence_no INT NOT NULL,
     block_type VARCHAR(30) NOT NULL DEFAULT 'PROBLEM',
     title VARCHAR(255) NOT NULL,
@@ -67,6 +69,7 @@ CREATE TABLE session_block (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE INDEX uidx_session_sequence (session_id, sequence_no),
+    UNIQUE INDEX uidx_session_external_block (session_id, external_block_id),
     INDEX idx_session_block_status (session_id, status),
     INDEX idx_session_block_type (session_id, block_type)
 );
@@ -84,7 +87,20 @@ CREATE TABLE session_block_message (
     INDEX idx_block_order (block_id, message_order)
 );
 
--- 6. Draft versions
+-- 6. MCP ingest event dedupe log
+CREATE TABLE mcp_ingest_event (
+    event_id VARCHAR(255) PRIMARY KEY,
+    session_id VARCHAR(255) NOT NULL,
+    message_id VARCHAR(255) NOT NULL,
+    operation VARCHAR(30) NOT NULL,
+    processed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    result_status VARCHAR(30) NOT NULL,
+    INDEX idx_mcp_ingest_session (session_id),
+    INDEX idx_mcp_ingest_message (message_id),
+    INDEX idx_mcp_ingest_processed_at (processed_at)
+);
+
+-- 7. Draft versions
 CREATE TABLE draft (
     draft_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     session_id VARCHAR(255) NOT NULL,
@@ -99,7 +115,7 @@ CREATE TABLE draft (
     INDEX idx_session_draft_status (session_id, status)
 );
 
--- 7. Selected blocks for each draft
+-- 8. Selected blocks for each draft
 CREATE TABLE draft_block (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     draft_id BIGINT NOT NULL,

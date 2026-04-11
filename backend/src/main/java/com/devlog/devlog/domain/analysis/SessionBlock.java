@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public class SessionBlock {
     private final Long blockId;
     private final String sessionId;
+    private final String externalBlockId;
     private final Integer sequenceNo;
     private final String blockType;
     private final String title;
@@ -16,15 +17,23 @@ public class SessionBlock {
     private final LocalDateTime messageEndAt;
 
     public SessionBlock(Long blockId, String sessionId, String title, String contentJson) {
-        this(blockId, sessionId, null, null, title, null, contentJson, null, null, null, null);
+        this(blockId, sessionId, null, null, null, title, null, contentJson, null, null, null, null);
     }
 
     public SessionBlock(Long blockId, String sessionId, Integer sequenceNo, String blockType,
         String title, String summary, String contentJson, String status,
         Integer sourceMessageCount, LocalDateTime messageStartAt,
         LocalDateTime messageEndAt) {
+        this(blockId, sessionId, null, sequenceNo, blockType, title, summary, contentJson,
+            status, sourceMessageCount, messageStartAt, messageEndAt);
+    }
+
+    public SessionBlock(Long blockId, String sessionId, String externalBlockId, Integer sequenceNo,
+        String blockType, String title, String summary, String contentJson, String status,
+        Integer sourceMessageCount, LocalDateTime messageStartAt, LocalDateTime messageEndAt) {
         this.blockId = blockId;
         this.sessionId = sessionId;
+        this.externalBlockId = externalBlockId;
         this.sequenceNo = sequenceNo;
         this.blockType = blockType;
         this.title = title;
@@ -42,6 +51,10 @@ public class SessionBlock {
 
     public String getSessionId() {
         return sessionId;
+    }
+
+    public String getExternalBlockId() {
+        return externalBlockId;
     }
 
     public Integer getSequenceNo() {
