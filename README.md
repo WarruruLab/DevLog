@@ -274,7 +274,7 @@ devlog/
 
 ### 사전 준비
 
-- Java 21+, MySQL 8.0+, Gemini API Key
+- Java 21+, MySQL 8.0+, optional Gemini API Key
 - 개발톡(DevTalk) 서버 실행 중 (기본 포트 8080)
 
 ### 백엔드
@@ -289,8 +289,20 @@ cd backend
 
 | 변수명 | 설명 | 기본값 |
 |:---|:---|:---|
-| `MYSQL_PASSWORD` | DB 비밀번호 | 필수 |
-| `MYSQL_URL` | DB 연결 URL | `jdbc:mysql://localhost:3306/devlog` |
-| `GEMINI_API_KEY` | Gemini API 키 | 필수 |
-| `DEVTALK_BASE_URL` | 개발톡(DevTalk) 서버 주소 | 필수 |
-| `LLM_MODE` | `gemini` 또는 `mock` | `gemini` |
+| `SERVER_PORT` | 백엔드 HTTP 포트 | `8081` |
+| `SPRING_SQL_INIT_MODE` | `schema.sql` 실행 여부 | `always` |
+| `MYSQL_URL` | DB 연결 URL | `jdbc:mysql://localhost:3306/devlog?serverTimezone=Asia/Seoul&characterEncoding=UTF-8` |
+| `MYSQL_USERNAME` | DB 사용자명 | `root` |
+| `MYSQL_PASSWORD` | DB 비밀번호 | 빈 값 |
+| `LLM_MODE` | `mock` 또는 `gemini` | `mock` |
+| `LLM_GEMINI_API_KEY` | Gemini API 키 | 빈 값 |
+| `LLM_GEMINI_MODEL` | Gemini 모델명 | `gemini-2.5-flash` |
+| `LLM_GEMINI_BASE_URL` | Gemini API base URL | `https://generativelanguage.googleapis.com` |
+| `LLM_GEMINI_CONNECT_TIMEOUT_MS` | Gemini connect timeout | `3000` |
+| `LLM_GEMINI_READ_TIMEOUT_MS` | Gemini read timeout | `30000` |
+| `DEVTALK_BASE_URL` | DevTalk 서비스 루트 URL. `/api`를 붙이지 않는다 | `http://localhost:8080` |
+| `DEVTALK_CONNECT_TIMEOUT_MS` | DevTalk client connect timeout | `3000` |
+| `DEVTALK_READ_TIMEOUT_MS` | DevTalk client read timeout | `10000` |
+| `CORS_ALLOWED_ORIGINS` | 브라우저 허용 origin 목록, 쉼표로 구분 | `http://localhost:5173,http://127.0.0.1:5173` |
+
+프론트는 `frontend/.env.example`의 `VITE_API_BASE_URL`을 사용한다. 로컬에서는 `http://localhost:8081`, 프록시 뒤에서는 `/api`처럼 DevLog API 기준 URL을 넣으면 된다.

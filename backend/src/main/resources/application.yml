@@ -1,42 +1,33 @@
 server:
-  port: 8081 # DevTalk(8080)과 포트 충돌 방지
+  port: ${SERVER_PORT:8081}
 
 spring:
   application:
     name: devlog
   datasource:
-    # 환경변수가 없으면 기본값(로컬 devlog DB) 사용
     url: ${MYSQL_URL:jdbc:mysql://localhost:3306/devlog?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-    username: ${MYSQL_USERNAME:root} # 본인 로컬 DB 계정
-    password: ${MYSQL_PASSWORD}      # 본인 로컬 DB 비번
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
-
-  # 서버 시작 시 schema.sql 자동 실행
   sql:
     init:
-      mode: always
+      mode: ${SPRING_SQL_INIT_MODE:always}
       encoding: UTF-8
 
-# 1. AI 설정 (DevTalk 구조 차용)
 llm:
-  mode: gemini # or mock
-
+  mode: ${LLM_MODE:mock}
   mock:
-    always-fail: false
-
+    always-fail: ${LLM_MOCK_ALWAYS_FAIL:false}
   gemini:
-    base-url: https://generativelanguage.googleapis.com
-    # 분석 작업은 응답이 길어질 수 있으므로 타임아웃을 넉넉하게 설정
-    connect-timeout-ms: 3000
-    read-timeout-ms: 30000
-    api-key: ${GEMINI_API_KEY}
-    model: gemini-2.5-flash # 구조화 작업에 가성비 좋은 모델 추천
+    base-url: ${LLM_GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+    connect-timeout-ms: ${LLM_GEMINI_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${LLM_GEMINI_READ_TIMEOUT_MS:30000}
+    api-key: ${LLM_GEMINI_API_KEY:}
+    model: ${LLM_GEMINI_MODEL:gemini-2.5-flash}
 
-# 2. DevTalk 연동 설정 (데이터 수집용 Client)
 devtalk:
   client:
-    base-url: ${DEVTALK_BASE_URL}
-    connect-timeout-ms: 3000
-    read-timeout-ms: 10000
-    # api-key: ${DEVTALK_INTERNAL_KEY} # 추후 보안 적용 시 사용
+    base-url: ${DEVTALK_BASE_URL:http://localhost:8080}
+    connect-timeout-ms: ${DEVTALK_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${DEVTALK_READ_TIMEOUT_MS:10000}
 

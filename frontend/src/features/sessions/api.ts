@@ -8,6 +8,8 @@ import type {
   SessionSummary,
 } from './types'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
 }
@@ -21,8 +23,8 @@ async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
-async function tryFetch<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init)
+async function tryFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, init)
   return readJson<T>(response)
 }
 
