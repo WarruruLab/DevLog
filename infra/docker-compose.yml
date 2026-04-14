@@ -1,0 +1,85 @@
+services:
+  devlog-db:
+    image: mysql:8.4
+    container_name: devlog-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - devlog_db_data:/var/lib/mysql
+      - ../backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  devlog-backend:
+    build:
+      context: ..
+      dockerfile: infra/backend/Dockerfile
+    container_name: devlog-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SERVER_PORT: ${SERVER_PORT}
+      SPRING_SQL_INIT_MODE: ${SPRING_SQL_INIT_MODE}
+      MYSQL_URL: ${MYSQL_URL}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      LLM_MODE: ${LLM_MODE}
+      LLM_MOCK_ALWAYS_FAIL: ${LLM_MOCK_ALWAYS_FAIL}
+      LLM_GEMINI_API_KEY: ${LLM_GEMINI_API_KEY}
+      LLM_GEMINI_MODEL: ${LLM_GEMINI_MODEL}
+      LLM_GEMINI_BASE_URL: ${LLM_GEMINI_BASE_URL}
+      LLM_GEMINI_CONNECT_TIMEOUT_MS: ${LLM_GEMINI_CONNECT_TIMEOUT_MS}
+      LLM_GEMINI_READ_TIMEOUT_MS: ${LLM_GEMINI_READ_TIMEOUT_MS}
+      DEVTALK_BASE_URL: ${DEVTALK_BASE_URL}
+      DEVTALK_CONNECT_TIMEOUT_MS: ${DEVTALK_CONNECT_TIMEOUT_MS}
+      DEVTALK_READ_TIMEOUT_MS: ${DEVTALK_READ_TIMEOUT_MS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    depends_on:
+      devlog-db:
+        condition: service_healthy
+    ports:
+      - "${DEVLOG_BACKEND_DEBUG_PORT:-18081}:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/api/sessions >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  devlog-frontend:
+    build:
+      context: ..
+      dockerfile: infra/frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    container_name: devlog-frontend
+    restart: unless-stopped
+    depends_on:
+      devlog-backend:
+        condition: service_healthy
+    ports:
+      - "${DEVLOG_FRONTEND_HOST_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  devlog_db_data:
+
