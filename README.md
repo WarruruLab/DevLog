@@ -305,4 +305,4 @@ cd backend
 | `DEVTALK_READ_TIMEOUT_MS` | DevTalk client read timeout | `10000` |
 | `CORS_ALLOWED_ORIGINS` | 브라우저 허용 origin 목록, 쉼표로 구분 | `http://localhost:5173,http://127.0.0.1:5173` |
 
-프론트는 `frontend/.env.example`의 `VITE_API_BASE_URL`을 사용한다. 로컬에서는 `http://localhost:8081`, 프록시 뒤에서는 `/api`처럼 DevLog API 기준 URL을 넣으면 된다.
+프론트는 `frontend/.env.example`의 `VITE_API_BASE_URL`을 사용한다. 이 값은 API 루트를 직접 가리켜야 하므로 로컬에서는 `http://localhost:8081/api`, 프록시 뒤에서는 `/devlog/api`를 넣으면 된다.

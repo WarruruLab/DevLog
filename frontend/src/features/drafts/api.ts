@@ -2,7 +2,7 @@
 
 import type { CreateDraftRequest, DraftResponse } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 async function parseErrorResponse(response: Response): Promise<string> {
   const fallbackMessage = `Request failed with status ${response.status}`
@@ -34,11 +34,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function fetchDraft(draftId: number): Promise<DraftResponse> {
-  return requestJson<DraftResponse>(`/api/drafts/${draftId}`)
+  return requestJson<DraftResponse>(`/drafts/${draftId}`)
 }
 
 export function createDraft(payload: CreateDraftRequest): Promise<DraftResponse> {
-  return requestJson<DraftResponse>('/api/drafts', {
+  return requestJson<DraftResponse>('/drafts', {
     method: 'POST',
     body: JSON.stringify(payload),
   })

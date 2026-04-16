@@ -7,7 +7,7 @@ import type {
   SessionSummary,
 } from '../types/api';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 class ApiError extends Error {
   status: number;
@@ -48,16 +48,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getSessions: () => request<SessionSummary[]>('/api/sessions'),
+  getSessions: () => request<SessionSummary[]>('/sessions'),
   getSessionDetail: (sessionId: string) =>
-    request<SessionDetail>(`/api/sessions/${encodeURIComponent(sessionId)}`),
+    request<SessionDetail>(`/sessions/${encodeURIComponent(sessionId)}`),
   getSessionBlocks: (sessionId: string) =>
-    request<SessionBlock[]>(`/api/sessions/${encodeURIComponent(sessionId)}/blocks`),
+    request<SessionBlock[]>(`/sessions/${encodeURIComponent(sessionId)}/blocks`),
   triggerAnalysis: (sessionId: string) =>
-    request<AnalysisTriggerResponse>(`/api/analysis/${encodeURIComponent(sessionId)}`, { method: 'POST' }),
+    request<AnalysisTriggerResponse>(`/analysis/${encodeURIComponent(sessionId)}`, { method: 'POST' }),
   createDraft: (payload: CreateDraftRequest) =>
-    request<Draft>('/api/drafts', { method: 'POST', body: JSON.stringify(payload) }),
-  getDraft: (draftId: string | number) => request<Draft>(`/api/drafts/${encodeURIComponent(String(draftId))}`),
+    request<Draft>('/drafts', { method: 'POST', body: JSON.stringify(payload) }),
+  getDraft: (draftId: string | number) => request<Draft>(`/drafts/${encodeURIComponent(String(draftId))}`),
 };
 
 export { ApiError };

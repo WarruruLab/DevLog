@@ -8,7 +8,7 @@ import type {
   SessionSummary,
 } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -30,7 +30,7 @@ async function tryFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function fetchSessions(): Promise<SessionSummary[]> {
   try {
-    return await tryFetch<SessionSummary[]>('/api/sessions')
+    return await tryFetch<SessionSummary[]>('/sessions')
   } catch {
     return mockSessions
   }
@@ -38,7 +38,7 @@ export async function fetchSessions(): Promise<SessionSummary[]> {
 
 export async function fetchSessionDetail(sessionId: string): Promise<SessionDetail> {
   try {
-    return await tryFetch<SessionDetail>(`/api/sessions/${sessionId}`)
+    return await tryFetch<SessionDetail>(`/sessions/${sessionId}`)
   } catch {
     const detail = mockSessionDetails[sessionId]
     if (!detail) {
@@ -51,7 +51,7 @@ export async function fetchSessionDetail(sessionId: string): Promise<SessionDeta
 
 export async function fetchSessionBlocks(sessionId: string): Promise<SessionBlock[]> {
   try {
-    return await tryFetch<SessionBlock[]>(`/api/sessions/${sessionId}/blocks`)
+    return await tryFetch<SessionBlock[]>(`/sessions/${sessionId}/blocks`)
   } catch {
     return mockBlocks[sessionId] ?? []
   }
@@ -59,7 +59,7 @@ export async function fetchSessionBlocks(sessionId: string): Promise<SessionBloc
 
 export async function triggerAnalysis(sessionId: string): Promise<AnalysisTriggerResponse> {
   try {
-    return await tryFetch<AnalysisTriggerResponse>(`/api/analysis/${sessionId}`, {
+    return await tryFetch<AnalysisTriggerResponse>(`/analysis/${sessionId}`, {
       method: 'POST',
     })
   } catch {
@@ -75,7 +75,7 @@ export async function triggerAnalysis(sessionId: string): Promise<AnalysisTrigge
 
 export async function createDraft(request: CreateDraftRequest): Promise<DraftResponse> {
   try {
-    return await tryFetch<DraftResponse>('/api/drafts', {
+    return await tryFetch<DraftResponse>('/drafts', {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(request),
