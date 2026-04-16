@@ -22,6 +22,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    networks:
+      - warruru-shared
 
   devlog-backend:
     build:
@@ -59,6 +61,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - warruru-shared
 
   devlog-frontend:
     build:
@@ -79,7 +83,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - warruru-shared
 
 volumes:
   devlog_db_data:
 
+networks:
+  warruru-shared:
+    name: warruru-shared
+    external: true
