@@ -9,10 +9,12 @@ export const router = createBrowserRouter([
     path: '/',
     element: <App />,
     children: [
-      { index: true, element: <Navigate to="/sessions" replace /> },
+      { index: true, element: <Navigate to="sessions" replace /> },
       { path: 'sessions', element: <SessionListPage /> },
       { path: 'sessions/:sessionId', element: <SessionDetailPage /> },
       { path: 'drafts/:draftId', element: <DraftPage /> },
     ],
   },
-]);
+], {
+  basename: import.meta.env.BASE_URL,
+});
