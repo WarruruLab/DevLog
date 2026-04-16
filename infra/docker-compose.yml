@@ -56,7 +56,7 @@ services:
     ports:
       - "${DEVLOG_BACKEND_DEBUG_PORT:-18081}:8081"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/api/sessions >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/api/devlog/sessions >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -78,7 +78,7 @@ services:
     ports:
       - "${DEVLOG_FRONTEND_HOST_PORT:-8081}:80"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/devlog/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
