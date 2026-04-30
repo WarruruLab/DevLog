@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -114,8 +115,17 @@ public class McpBlockEventIngestService {
         LocalDateTime now
     ) {
         String externalBlockId = request.targetBlock().mcpBlockId();
-        if (blockRepository.findByExternalBlockId(request.sessionId(), externalBlockId).isPresent()) {
-            throw new IllegalArgumentException("block already exists: " + externalBlockId);
+        Optional<SessionBlock> existingBlock = blockRepository.findByExternalBlockId(request.sessionId(), externalBlockId);
+        if (existingBlock.isPresent()) {
+            return recoverCreateBlockForExistingBlock(request, context, message, now, existingBlock.get());
+        }
+
+        List<SessionBlockMessage> existingMessageMappings = blockMessageRepository.findByMessageId(
+            request.sessionId(),
+            request.messageId()
+        );
+        if (!existingMessageMappings.isEmpty()) {
+            throw new IllegalArgumentException("message already mapped to another block: " + request.messageId());
         }
 
         SessionBlock block = new SessionBlock(
@@ -133,25 +143,73 @@ public class McpBlockEventIngestService {
             message.getMessageCreatedAt()
         );
 
-        Long blockId = blockRepository.save(block);
+        Long blockId;
+        try {
+            blockId = blockRepository.save(block);
+        } catch (DuplicateKeyException e) {
+            SessionBlock racedBlock = blockRepository.findByExternalBlockId(request.sessionId(), externalBlockId)
+                .orElseThrow(() -> e);
+            return recoverCreateBlockForExistingBlock(request, context, message, now, racedBlock);
+        }
         if (blockId == null) {
             throw new IllegalStateException("failed to create block_id");
         }
 
-        blockMessageRepository.saveAll(List.of(new SessionBlockMessage(
-            null,
-            request.sessionId(),
-            blockId,
-            request.messageId(),
-            1,
-            now
-        )));
+        saveMappingOrIgnoreSameBlockRace(request.sessionId(), blockId, request.messageId(), 1, now);
         messageRepository.markStructured(List.of(request.messageId()), now);
 
         return buildAppliedResponse(
             request,
             blockId,
             "Created block and mapped message."
+        );
+    }
+
+    private McpSessionBlockEventIngestResponse recoverCreateBlockForExistingBlock(
+        McpSessionBlockEventIngestRequest request,
+        SessionContext context,
+        SyncedMessage message,
+        LocalDateTime now,
+        SessionBlock existingBlock
+    ) {
+        List<SessionBlockMessage> mappingsForMessage = blockMessageRepository.findByMessageId(
+            request.sessionId(),
+            request.messageId()
+        );
+        boolean mappedToTarget = mappingsForMessage.stream()
+            .anyMatch(mapping -> existingBlock.getBlockId().equals(mapping.getBlockId()));
+        if (mappedToTarget) {
+            return new McpSessionBlockEventIngestResponse(
+                request.sessionId(),
+                request.eventId(),
+                normalizeOperation(request.operation()),
+                "IGNORED",
+                existingBlock.getBlockId(),
+                existingBlock.getExternalBlockId(),
+                "Message already mapped to existing block."
+            );
+        }
+        if (!mappingsForMessage.isEmpty()) {
+            throw new IllegalArgumentException("message already mapped to another block: " + request.messageId());
+        }
+        if (!isActive(existingBlock)) {
+            throw new IllegalArgumentException("target block is not active: " + request.targetBlock().mcpBlockId());
+        }
+
+        int nextOrder = nextMessageOrder(context.mappingsByBlockId().get(existingBlock.getBlockId()));
+        saveMappingOrIgnoreSameBlockRace(
+            request.sessionId(),
+            existingBlock.getBlockId(),
+            request.messageId(),
+            nextOrder,
+            now
+        );
+        messageRepository.markStructured(List.of(request.messageId()), now);
+
+        return buildAppliedResponse(
+            request,
+            existingBlock.getBlockId(),
+            "Mapped message to existing block."
         );
     }
 
@@ -178,14 +236,7 @@ public class McpBlockEventIngestService {
         }
 
         int nextOrder = nextMessageOrder(context.mappingsByBlockId().get(existingBlock.getBlockId()));
-        blockMessageRepository.saveAll(List.of(new SessionBlockMessage(
-            null,
-            request.sessionId(),
-            existingBlock.getBlockId(),
-            request.messageId(),
-            nextOrder,
-            now
-        )));
+        saveMappingOrIgnoreSameBlockRace(request.sessionId(), existingBlock.getBlockId(), request.messageId(), nextOrder, now);
         messageRepository.markStructured(List.of(request.messageId()), now);
 
         SessionBlock updatedBlock = new SessionBlock(
@@ -402,6 +453,34 @@ public class McpBlockEventIngestService {
             throw new IllegalArgumentException("message not found: " + messageId);
         }
         return message;
+    }
+
+    private void saveMappingOrIgnoreSameBlockRace(
+        String sessionId,
+        Long blockId,
+        String messageId,
+        int messageOrder,
+        LocalDateTime now
+    ) {
+        try {
+            blockMessageRepository.saveAll(List.of(new SessionBlockMessage(
+                null,
+                sessionId,
+                blockId,
+                messageId,
+                messageOrder,
+                now
+            )));
+        } catch (DuplicateKeyException e) {
+            if (blockMessageRepository.existsBlockMessage(blockId, messageId)) {
+                return;
+            }
+            List<SessionBlockMessage> mappings = blockMessageRepository.findByMessageId(sessionId, messageId);
+            if (mappings.stream().anyMatch(mapping -> blockId.equals(mapping.getBlockId()))) {
+                return;
+            }
+            throw e;
+        }
     }
 
     private String toJsonContent(Map<String, Object> content) {

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
@@ -60,6 +62,7 @@ class McpBlockEventIngestServiceTest {
             .thenReturn(new SimpleTransactionStatus());
         doNothing().when(transactionManager).commit(any(TransactionStatus.class));
         doNothing().when(transactionManager).rollback(any(TransactionStatus.class));
+        when(blockMessageRepository.findByMessageId(anyString(), anyString())).thenReturn(List.of());
 
         service = new McpBlockEventIngestService(
             sessionRepository,
@@ -373,6 +376,399 @@ class McpBlockEventIngestServiceTest {
         verify(blockRepository, times(1)).save(any(SessionBlock.class));
         verify(blockMessageRepository, times(1)).saveAll(anyList());
         verify(ingestEventRepository, times(1)).saveIngestEvent(any());
+    }
+
+    @Test
+    void ingest_createBlockWithExistingBlockAndSameMappedMessage_returnsIgnored() {
+        String sessionId = "session-1";
+        LocalDateTime baseTime = LocalDateTime.of(2026, 4, 10, 10, 0);
+
+        when(ingestEventRepository.existsIngestEvent("evt-existing-same")).thenReturn(false, false);
+        when(sessionRepository.findBySessionId(sessionId)).thenReturn(Optional.of(session(sessionId)));
+        when(messageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            message(sessionId, "m1", baseTime, "first")
+        ));
+        when(blockMessageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            mapping(sessionId, 101L, "m1", 1, baseTime)
+        ));
+        when(blockMessageRepository.findByMessageId(sessionId, "m1")).thenReturn(List.of(
+            mapping(sessionId, 101L, "m1", 1, baseTime)
+        ));
+        when(blockRepository.findByExternalBlockId(sessionId, "blk-1")).thenReturn(Optional.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "existing title",
+            "existing summary",
+            "{\"existing\":true}",
+            "ACTIVE",
+            1,
+            baseTime,
+            baseTime
+        )));
+        when(blockRepository.findAllBySessionId(sessionId)).thenReturn(List.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "existing title",
+            "existing summary",
+            "{\"existing\":true}",
+            "ACTIVE",
+            1,
+            baseTime,
+            baseTime
+        )));
+        when(messageRepository.countBySessionId(sessionId)).thenReturn(1L);
+        when(messageRepository.countStructuredBySessionId(sessionId)).thenReturn(1L);
+        when(messageRepository.countUnstructuredBySessionId(sessionId)).thenReturn(0L);
+        when(messageRepository.findLastCreatedAtBySessionId(sessionId)).thenReturn(Optional.of(baseTime));
+
+        McpSessionBlockEventIngestResponse response = service.ingest(createRequest(
+            sessionId,
+            "evt-existing-same",
+            "m1",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "incoming title",
+            "incoming summary",
+            "ACTIVE",
+            Map.of("incoming", true)
+        ));
+
+        assertThat(response.status()).isEqualTo("IGNORED");
+        assertThat(response.blockId()).isEqualTo(101L);
+        assertThat(response.message()).isEqualTo("Message already mapped to existing block.");
+
+        verify(blockRepository, never()).save(any(SessionBlock.class));
+        verify(blockRepository, never()).update(any(SessionBlock.class));
+        verify(blockMessageRepository, never()).saveAll(anyList());
+        verify(messageRepository, never()).markStructured(anyList(), any(LocalDateTime.class));
+        verify(ingestEventRepository).saveIngestEvent(any());
+        verify(sessionRepository, never()).updateSessionStatus(sessionId, "FAILED");
+    }
+
+    @Test
+    void ingest_createBlockWithExistingBlockButMessageNotMapped_recoversMapping() {
+        String sessionId = "session-1";
+        LocalDateTime firstTime = LocalDateTime.of(2026, 4, 10, 10, 0);
+        LocalDateTime secondTime = firstTime.plusMinutes(1);
+
+        when(ingestEventRepository.existsIngestEvent("evt-existing-new-message")).thenReturn(false, false);
+        when(sessionRepository.findBySessionId(sessionId)).thenReturn(Optional.of(session(sessionId)));
+        when(messageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            message(sessionId, "m1", firstTime, "first"),
+            message(sessionId, "m2", secondTime, "second")
+        ));
+        when(blockMessageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            mapping(sessionId, 101L, "m1", 1, firstTime)
+        ));
+        when(blockRepository.findByExternalBlockId(sessionId, "blk-1")).thenReturn(Optional.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "existing title",
+            "existing summary",
+            "{\"existing\":true}",
+            "ACTIVE",
+            1,
+            firstTime,
+            firstTime
+        )));
+        when(blockRepository.findAllBySessionId(sessionId)).thenReturn(List.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "existing title",
+            "existing summary",
+            "{\"existing\":true}",
+            "ACTIVE",
+            1,
+            firstTime,
+            secondTime
+        )));
+        when(messageRepository.countBySessionId(sessionId)).thenReturn(2L);
+        when(messageRepository.countStructuredBySessionId(sessionId)).thenReturn(2L);
+        when(messageRepository.countUnstructuredBySessionId(sessionId)).thenReturn(0L);
+        when(messageRepository.findLastCreatedAtBySessionId(sessionId)).thenReturn(Optional.of(secondTime));
+
+        McpSessionBlockEventIngestResponse response = service.ingest(createRequest(
+            sessionId,
+            "evt-existing-new-message",
+            "m2",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "incoming title",
+            "incoming summary",
+            "ACTIVE",
+            Map.of("incoming", true)
+        ));
+
+        assertThat(response.status()).isEqualTo("APPLIED");
+        assertThat(response.blockId()).isEqualTo(101L);
+        assertThat(response.message()).isEqualTo("Mapped message to existing block.");
+
+        verify(blockRepository, never()).save(any(SessionBlock.class));
+        verify(blockRepository, never()).update(any(SessionBlock.class));
+        ArgumentCaptor<List<SessionBlockMessage>> mappingCaptor = ArgumentCaptor.forClass(List.class);
+        verify(blockMessageRepository).saveAll(mappingCaptor.capture());
+        assertThat(mappingCaptor.getValue()).hasSize(1);
+        assertThat(mappingCaptor.getValue().get(0).getBlockId()).isEqualTo(101L);
+        assertThat(mappingCaptor.getValue().get(0).getMessageId()).isEqualTo("m2");
+        assertThat(mappingCaptor.getValue().get(0).getMessageOrder()).isEqualTo(2);
+        verify(messageRepository).markStructured(eq(List.of("m2")), any(LocalDateTime.class));
+        verify(ingestEventRepository).saveIngestEvent(any());
+    }
+
+    @Test
+    void ingest_createBlockWithExistingBlockButMessageMappedToOtherBlock_failsConflict() {
+        String sessionId = "session-1";
+        LocalDateTime baseTime = LocalDateTime.of(2026, 4, 10, 10, 0);
+
+        when(ingestEventRepository.existsIngestEvent("evt-existing-conflict")).thenReturn(false, false);
+        when(sessionRepository.findBySessionId(sessionId)).thenReturn(Optional.of(session(sessionId)));
+        when(messageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            message(sessionId, "m1", baseTime, "first")
+        ));
+        when(blockMessageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            mapping(sessionId, 202L, "m1", 1, baseTime)
+        ));
+        when(blockMessageRepository.findByMessageId(sessionId, "m1")).thenReturn(List.of(
+            mapping(sessionId, 202L, "m1", 1, baseTime)
+        ));
+        when(blockRepository.findByExternalBlockId(sessionId, "blk-1")).thenReturn(Optional.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "existing title",
+            "existing summary",
+            "{\"existing\":true}",
+            "ACTIVE",
+            1,
+            baseTime,
+            baseTime
+        )));
+
+        assertThatThrownBy(() -> service.ingest(createRequest(
+            sessionId,
+            "evt-existing-conflict",
+            "m1",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "incoming title",
+            "incoming summary",
+            "ACTIVE",
+            Map.of("incoming", true)
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("message already mapped to another block");
+
+        verify(blockRepository, never()).save(any(SessionBlock.class));
+        verify(blockRepository, never()).update(any(SessionBlock.class));
+        verify(blockMessageRepository, never()).saveAll(anyList());
+        verify(ingestEventRepository, never()).saveIngestEvent(any());
+        verify(sessionRepository).updateSessionStatus(sessionId, "FAILED");
+        verify(sessionRepository).updateAnalysisStatus(sessionId, "FAILED");
+    }
+
+    @Test
+    void ingest_createBlockDuplicateKeyDuringSave_recoversExistingBlock() {
+        String sessionId = "session-1";
+        LocalDateTime baseTime = LocalDateTime.of(2026, 4, 10, 10, 0);
+
+        when(ingestEventRepository.existsIngestEvent("evt-duplicate-key")).thenReturn(false, false);
+        when(sessionRepository.findBySessionId(sessionId)).thenReturn(Optional.of(session(sessionId)));
+        when(messageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            message(sessionId, "m1", baseTime, "first")
+        ));
+        when(blockMessageRepository.findAllBySessionId(sessionId)).thenReturn(List.of());
+        when(blockRepository.findByExternalBlockId(sessionId, "blk-1")).thenReturn(
+            Optional.empty(),
+            Optional.of(block(
+                101L,
+                sessionId,
+                "blk-1",
+                1,
+                "TRIAL",
+                "existing title",
+                "existing summary",
+                "{\"existing\":true}",
+                "ACTIVE",
+                0,
+                baseTime,
+                baseTime
+            ))
+        );
+        when(blockRepository.findAllBySessionId(sessionId)).thenReturn(List.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "existing title",
+            "existing summary",
+            "{\"existing\":true}",
+            "ACTIVE",
+            1,
+            baseTime,
+            baseTime
+        )));
+        when(messageRepository.countBySessionId(sessionId)).thenReturn(1L);
+        when(messageRepository.countStructuredBySessionId(sessionId)).thenReturn(1L);
+        when(messageRepository.countUnstructuredBySessionId(sessionId)).thenReturn(0L);
+        when(messageRepository.findLastCreatedAtBySessionId(sessionId)).thenReturn(Optional.of(baseTime));
+        when(blockRepository.save(any(SessionBlock.class))).thenThrow(new DuplicateKeyException("duplicate block"));
+
+        McpSessionBlockEventIngestResponse response = service.ingest(createRequest(
+            sessionId,
+            "evt-duplicate-key",
+            "m1",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "incoming title",
+            "incoming summary",
+            "ACTIVE",
+            Map.of("incoming", true)
+        ));
+
+        assertThat(response.status()).isEqualTo("APPLIED");
+        assertThat(response.blockId()).isEqualTo(101L);
+        assertThat(response.message()).isEqualTo("Mapped message to existing block.");
+        verify(blockMessageRepository).saveAll(anyList());
+        verify(messageRepository).markStructured(eq(List.of("m1")), any(LocalDateTime.class));
+        verify(ingestEventRepository).saveIngestEvent(any());
+    }
+
+    @Test
+    void ingest_createBlockWithClosedExistingBlockAndSameMappedMessage_returnsIgnored() {
+        String sessionId = "session-1";
+        LocalDateTime baseTime = LocalDateTime.of(2026, 4, 10, 10, 0);
+
+        when(ingestEventRepository.existsIngestEvent("evt-closed-same")).thenReturn(false, false);
+        when(sessionRepository.findBySessionId(sessionId)).thenReturn(Optional.of(session(sessionId)));
+        when(messageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            message(sessionId, "m1", baseTime, "first")
+        ));
+        when(blockMessageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            mapping(sessionId, 101L, "m1", 1, baseTime)
+        ));
+        when(blockMessageRepository.findByMessageId(sessionId, "m1")).thenReturn(List.of(
+            mapping(sessionId, 101L, "m1", 1, baseTime)
+        ));
+        when(blockRepository.findByExternalBlockId(sessionId, "blk-1")).thenReturn(Optional.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "closed title",
+            "closed summary",
+            "{\"closed\":true}",
+            "CLOSED",
+            1,
+            baseTime,
+            baseTime
+        )));
+        when(blockRepository.findAllBySessionId(sessionId)).thenReturn(List.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "closed title",
+            "closed summary",
+            "{\"closed\":true}",
+            "CLOSED",
+            1,
+            baseTime,
+            baseTime
+        )));
+        when(messageRepository.countBySessionId(sessionId)).thenReturn(1L);
+        when(messageRepository.countStructuredBySessionId(sessionId)).thenReturn(1L);
+        when(messageRepository.countUnstructuredBySessionId(sessionId)).thenReturn(0L);
+        when(messageRepository.findLastCreatedAtBySessionId(sessionId)).thenReturn(Optional.of(baseTime));
+
+        McpSessionBlockEventIngestResponse response = service.ingest(createRequest(
+            sessionId,
+            "evt-closed-same",
+            "m1",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "incoming title",
+            "incoming summary",
+            "CLOSED",
+            Map.of("incoming", true)
+        ));
+
+        assertThat(response.status()).isEqualTo("IGNORED");
+        assertThat(response.blockId()).isEqualTo(101L);
+        verify(blockMessageRepository, never()).saveAll(anyList());
+        verify(sessionRepository, never()).updateSessionStatus(sessionId, "FAILED");
+    }
+
+    @Test
+    void ingest_createBlockWithClosedExistingBlockAndDifferentMessage_failsWithoutAppend() {
+        String sessionId = "session-1";
+        LocalDateTime firstTime = LocalDateTime.of(2026, 4, 10, 10, 0);
+        LocalDateTime secondTime = firstTime.plusMinutes(1);
+
+        when(ingestEventRepository.existsIngestEvent("evt-closed-new-message")).thenReturn(false, false);
+        when(sessionRepository.findBySessionId(sessionId)).thenReturn(Optional.of(session(sessionId)));
+        when(messageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            message(sessionId, "m1", firstTime, "first"),
+            message(sessionId, "m2", secondTime, "second")
+        ));
+        when(blockMessageRepository.findAllBySessionId(sessionId)).thenReturn(List.of(
+            mapping(sessionId, 101L, "m1", 1, firstTime)
+        ));
+        when(blockRepository.findByExternalBlockId(sessionId, "blk-1")).thenReturn(Optional.of(block(
+            101L,
+            sessionId,
+            "blk-1",
+            1,
+            "TRIAL",
+            "closed title",
+            "closed summary",
+            "{\"closed\":true}",
+            "CLOSED",
+            1,
+            firstTime,
+            firstTime
+        )));
+
+        assertThatThrownBy(() -> service.ingest(createRequest(
+            sessionId,
+            "evt-closed-new-message",
+            "m2",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "incoming title",
+            "incoming summary",
+            "CLOSED",
+            Map.of("incoming", true)
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("target block is not active");
+
+        verify(blockMessageRepository, never()).saveAll(anyList());
+        verify(ingestEventRepository, never()).saveIngestEvent(any());
+        verify(sessionRepository).updateSessionStatus(sessionId, "FAILED");
+        verify(sessionRepository).updateAnalysisStatus(sessionId, "FAILED");
     }
 
     @Test

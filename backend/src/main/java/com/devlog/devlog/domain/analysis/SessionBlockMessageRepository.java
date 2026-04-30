@@ -7,6 +7,8 @@ public interface SessionBlockMessageRepository {
 
     List<SessionBlockMessage> findAllBySessionId(String sessionId);
 
+    List<SessionBlockMessage> findByMessageId(String sessionId, String messageId);
+
     boolean existsBlockMessage(Long blockId, String messageId);
 
     void deleteBySessionId(String sessionId);

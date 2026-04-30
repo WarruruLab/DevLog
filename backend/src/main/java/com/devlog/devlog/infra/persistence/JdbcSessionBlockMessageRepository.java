@@ -59,6 +59,18 @@ public class JdbcSessionBlockMessageRepository implements SessionBlockMessageRep
     }
 
     @Override
+    public List<SessionBlockMessage> findByMessageId(String sessionId, String messageId) {
+        String sql = """
+            SELECT *
+            FROM session_block_message
+            WHERE session_id = ?
+              AND message_id = ?
+            ORDER BY block_id ASC, message_order ASC, id ASC
+            """;
+        return jdbcTemplate.query(sql, rowMapper, sessionId, messageId);
+    }
+
+    @Override
     public boolean existsBlockMessage(Long blockId, String messageId) {
         String sql = """
             SELECT COUNT(*)
