@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -33,19 +34,25 @@ public class McpBlockIngestService {
     private final SessionBlockRepository blockRepository;
     private final SessionBlockMessageRepository blockMessageRepository;
     private final TransactionTemplate transactionTemplate;
+    private final int maxBlocks;
+    private final int maxMessagesPerBlock;
 
     public McpBlockIngestService(
         LogicalSessionRepository sessionRepository,
         SyncedMessageRepository messageRepository,
         SessionBlockRepository blockRepository,
         SessionBlockMessageRepository blockMessageRepository,
-        PlatformTransactionManager transactionManager
+        PlatformTransactionManager transactionManager,
+        @Value("${mcp.ingest.max-blocks:500}") int maxBlocks,
+        @Value("${mcp.ingest.max-messages-per-block:200}") int maxMessagesPerBlock
     ) {
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
         this.blockRepository = blockRepository;
         this.blockMessageRepository = blockMessageRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.maxBlocks = maxBlocks;
+        this.maxMessagesPerBlock = maxMessagesPerBlock;
     }
 
     public McpSessionBlocksIngestResponse ingest(McpSessionBlocksIngestRequest request) {
@@ -191,6 +198,9 @@ public class McpBlockIngestService {
         if (request.blocks() == null || request.blocks().isEmpty()) {
             throw new IllegalArgumentException("blocks must not be empty");
         }
+        if (request.blocks().size() > maxBlocks) {
+            throw new IllegalArgumentException("blocks exceeds maxBlocks: " + maxBlocks);
+        }
         if (!"REPLACE".equalsIgnoreCase(request.mode())) {
             throw new IllegalArgumentException("only REPLACE mode is supported");
         }
@@ -208,6 +218,9 @@ public class McpBlockIngestService {
             requireText(block.summary(), "summary");
             if (block.messageIds() == null || block.messageIds().isEmpty()) {
                 throw new IllegalArgumentException("messageIds must not be empty");
+            }
+            if (block.messageIds().size() > maxMessagesPerBlock) {
+                throw new IllegalArgumentException("messageIds exceeds maxMessagesPerBlock: " + maxMessagesPerBlock);
             }
             for (String messageId : block.messageIds()) {
                 requireText(messageId, "messageId");

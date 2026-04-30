@@ -70,7 +70,8 @@ class McpBlockEventIngestServiceTest {
             blockRepository,
             blockMessageRepository,
             ingestEventRepository,
-            transactionManager
+            transactionManager,
+            65536
         );
     }
 
@@ -808,6 +809,36 @@ class McpBlockEventIngestServiceTest {
         verify(sessionRepository).updateSessionStatus(sessionId, "FAILED");
         verify(sessionRepository).updateAnalysisStatus(sessionId, "FAILED");
         verify(sessionRepository).updateAnalysisErrorMessage(sessionId, "target block not found: blk-missing");
+    }
+
+    @Test
+    void ingest_rejectsOversizedContent() {
+        service = new McpBlockEventIngestService(
+            sessionRepository,
+            messageRepository,
+            blockRepository,
+            blockMessageRepository,
+            ingestEventRepository,
+            transactionManager,
+            10
+        );
+
+        assertThatThrownBy(() -> service.ingest(createRequest(
+            "session-1",
+            "evt-big",
+            "m1",
+            "CREATE_BLOCK",
+            "blk-1",
+            "trial",
+            "block one",
+            "summary one",
+            "ACTIVE",
+            Map.of("text", "content too large")
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("maxContentBytes");
+
+        verify(ingestEventRepository, never()).existsIngestEvent(anyString());
     }
 
     @Test

@@ -24,7 +24,4 @@ public record LlmOptions(
      */
     Integer maxTokens
 ) {
-    public static LlmOptions defaults() {
-        return new LlmOptions(0.2, 65536);
-    }
 }

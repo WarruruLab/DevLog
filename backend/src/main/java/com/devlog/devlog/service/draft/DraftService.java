@@ -7,10 +7,6 @@ import com.devlog.devlog.domain.draft.Draft;
 import com.devlog.devlog.domain.draft.DraftBlock;
 import com.devlog.devlog.domain.draft.DraftBlockRepository;
 import com.devlog.devlog.domain.draft.DraftRepository;
-import com.devlog.devlog.domain.llm.LlmMessage;
-import com.devlog.devlog.domain.llm.LlmOptions;
-import com.devlog.devlog.domain.llm.LlmRequest;
-import com.devlog.devlog.domain.llm.LlmRole;
 import com.devlog.devlog.domain.session.LogicalSession;
 import com.devlog.devlog.domain.session.LogicalSessionRepository;
 import com.devlog.devlog.service.llm.AiService;
@@ -20,8 +16,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,17 +29,20 @@ public class DraftService {
     private final DraftBlockRepository draftBlockRepository;
     private final LogicalSessionRepository sessionRepository;
     private final AiService aiService;
+    private final int maxSelectedBlocks;
 
     public DraftService(SessionBlockRepository blockRepository,
         DraftRepository draftRepository,
         DraftBlockRepository draftBlockRepository,
         LogicalSessionRepository sessionRepository,
-        AiService aiService) {
+        AiService aiService,
+        @Value("${draft.max-selected-blocks:200}") int maxSelectedBlocks) {
         this.blockRepository = blockRepository;
         this.draftRepository = draftRepository;
         this.draftBlockRepository = draftBlockRepository;
         this.sessionRepository = sessionRepository;
         this.aiService = aiService;
+        this.maxSelectedBlocks = maxSelectedBlocks;
     }
 
     @Transactional
@@ -52,6 +51,9 @@ public class DraftService {
             .orElseThrow(() -> new RuntimeException("세션을 찾을 수 없다: " + sessionId));
 
         List<Long> requestedBlockIds = selectedBlockIds == null ? List.of() : selectedBlockIds;
+        if (requestedBlockIds.size() > maxSelectedBlocks) {
+            throw new IllegalArgumentException("selectedBlockIds exceeds maxSelectedBlocks: " + maxSelectedBlocks);
+        }
         List<SessionBlock> selectedBlocks = orderedSelectedBlocks(sessionId, requestedBlockIds);
         int versionNo = draftRepository.nextVersion(sessionId);
         LocalDateTime now = LocalDateTime.now();
@@ -94,13 +96,7 @@ public class DraftService {
         String userPrompt = formatBlocksForAi(selectedBlocks);
 
         try {
-            String content = aiService.ask(
-                new LlmRequest(
-                    systemPrompt,
-                    List.of(new LlmMessage(LlmRole.USER, userPrompt)),
-                    LlmOptions.defaults()
-                )
-            );
+            String content = aiService.ask(systemPrompt, userPrompt);
 
             Draft draft = new Draft(
                 null,

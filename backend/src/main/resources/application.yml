@@ -16,6 +16,9 @@ spring:
 
 llm:
   mode: ${LLM_MODE:mock}
+  default:
+    temperature: ${LLM_DEFAULT_TEMPERATURE:0.2}
+    max-tokens: ${LLM_DEFAULT_MAX_TOKENS:65536}
   mock:
     always-fail: ${LLM_MOCK_ALWAYS_FAIL:false}
   gemini:
@@ -30,4 +33,17 @@ devtalk:
     base-url: ${DEVTALK_BASE_URL:http://localhost:8080}
     connect-timeout-ms: ${DEVTALK_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${DEVTALK_READ_TIMEOUT_MS:10000}
+
+sync:
+  max-pages: ${SYNC_MAX_PAGES:1000}
+
+draft:
+  max-selected-blocks: ${DRAFT_MAX_SELECTED_BLOCKS:200}
+
+mcp:
+  ingest:
+    max-blocks: ${MCP_INGEST_MAX_BLOCKS:500}
+    max-messages-per-block: ${MCP_INGEST_MAX_MESSAGES_PER_BLOCK:200}
+  event:
+    max-content-bytes: ${MCP_EVENT_MAX_CONTENT_BYTES:65536}
 

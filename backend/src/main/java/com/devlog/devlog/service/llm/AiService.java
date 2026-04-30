@@ -13,9 +13,11 @@ import org.springframework.stereotype.Service;
 public class AiService {
 
     private final LlmClient llmClient;
+    private final LlmOptions defaultOptions;
 
-    public AiService(LlmClient llmClient) {
+    public AiService(LlmClient llmClient, LlmOptions defaultOptions) {
         this.llmClient = llmClient;
+        this.defaultOptions = defaultOptions;
     }
 
     /**
@@ -25,7 +27,7 @@ public class AiService {
         LlmRequest request = new LlmRequest(
             systemPrompt,
             List.of(new LlmMessage(LlmRole.USER, userPrompt)),
-            LlmOptions.defaults()
+            defaultOptions
         );
 
         return execute(request);
@@ -42,7 +44,7 @@ public class AiService {
      * 상우님이 작성하신 LlmResult 구조에 맞춘 결과 처리
      */
     private String execute(LlmRequest request) {
-        LlmResult result = llmClient.generate(request);
+        LlmResult result = llmClient.generate(applyDefaultOptions(request));
 
         return switch (result) {
             case LlmResult.Success success -> success.text();
@@ -51,5 +53,12 @@ public class AiService {
             case LlmResult.Failure failure ->
                 throw new RuntimeException("AI 분석 실패: " + failure.message());
         };
+    }
+
+    private LlmRequest applyDefaultOptions(LlmRequest request) {
+        if (request.options() != null) {
+            return request;
+        }
+        return new LlmRequest(request.systemPrompt(), request.messages(), defaultOptions);
     }
 }

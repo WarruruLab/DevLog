@@ -34,7 +34,7 @@ class SyncServiceTest {
         devTalkClient = mock(DevTalkClient.class);
         messageRepository = mock(SyncedMessageRepository.class);
         sessionRepository = mock(LogicalSessionRepository.class);
-        service = new SyncService(devTalkClient, messageRepository, sessionRepository);
+        service = new SyncService(devTalkClient, messageRepository, sessionRepository, 1000);
     }
 
     @Test
@@ -95,5 +95,30 @@ class SyncServiceTest {
         verify(sessionRepository).updateSyncStatus(sessionId, "FAILED");
         verify(sessionRepository).updateSessionStatus(sessionId, "FAILED");
         verify(sessionRepository, never()).updateSyncStatus(eq(sessionId), eq("DONE"));
+    }
+
+    @Test
+    void sync_failsWhenPageLimitExceeded() {
+        service = new SyncService(devTalkClient, messageRepository, sessionRepository, 1);
+        String sessionId = "session-1";
+        LocalDateTime baseTime = LocalDateTime.of(2026, 4, 11, 10, 0);
+
+        when(sessionRepository.findBySessionId(sessionId))
+            .thenReturn(Optional.of(new LogicalSession(sessionId)));
+        when(messageRepository.findLastCreatedAtBySessionId(sessionId))
+            .thenReturn(Optional.of(baseTime));
+        when(devTalkClient.fetchMessages(sessionId, baseTime.toString()))
+            .thenReturn(new InternalMessagePageResponse(
+                List.of(new InternalMessageResponse("m1", "first", "USER", baseTime.plusMinutes(1))),
+                baseTime.plusMinutes(1).toString(),
+                true
+            ));
+
+        assertThatThrownBy(() -> service.sync(new SyncRequest(sessionId)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("maxPages");
+
+        verify(devTalkClient, times(1)).fetchMessages(sessionId, baseTime.toString());
+        verify(sessionRepository).updateSyncStatus(sessionId, "FAILED");
     }
 }

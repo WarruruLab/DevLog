@@ -10,6 +10,7 @@ import com.devlog.devlog.infra.client.DevTalkClient;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +20,15 @@ public class SyncService {
     private final DevTalkClient devTalkClient;
     private final SyncedMessageRepository messageRepository;
     private final LogicalSessionRepository sessionRepository;
+    private final int maxPages;
 
     public SyncService(DevTalkClient devTalkClient, SyncedMessageRepository messageRepository,
-        LogicalSessionRepository sessionRepository) {
+        LogicalSessionRepository sessionRepository,
+        @Value("${sync.max-pages:1000}") int maxPages) {
         this.devTalkClient = devTalkClient;
         this.messageRepository = messageRepository;
         this.sessionRepository = sessionRepository;
+        this.maxPages = maxPages;
     }
 
     @Transactional
@@ -74,9 +78,14 @@ public class SyncService {
 
     private void syncAllPages(String sessionId, String initialCursor) {
         String cursor = initialCursor;
+        int fetchedPages = 0;
 
         while (true) {
+            if (fetchedPages >= maxPages) {
+                throw new IllegalStateException("DevTalk pagination exceeded maxPages: " + maxPages);
+            }
             InternalMessagePageResponse response = devTalkClient.fetchMessages(sessionId, cursor);
+            fetchedPages++;
             if (response == null) {
                 return;
             }

@@ -13,6 +13,7 @@ import com.devlog.devlog.domain.session.LogicalSession;
 import com.devlog.devlog.domain.session.LogicalSessionRepository;
 import com.devlog.devlog.domain.sync.SyncedMessage;
 import com.devlog.devlog.domain.sync.SyncedMessageRepository;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -35,6 +37,7 @@ public class McpBlockEventIngestService {
     private final SessionBlockMessageRepository blockMessageRepository;
     private final McpIngestEventRepository ingestEventRepository;
     private final TransactionTemplate transactionTemplate;
+    private final int maxContentBytes;
 
     public McpBlockEventIngestService(
         LogicalSessionRepository sessionRepository,
@@ -42,7 +45,8 @@ public class McpBlockEventIngestService {
         SessionBlockRepository blockRepository,
         SessionBlockMessageRepository blockMessageRepository,
         McpIngestEventRepository ingestEventRepository,
-        PlatformTransactionManager transactionManager
+        PlatformTransactionManager transactionManager,
+        @Value("${mcp.event.max-content-bytes:65536}") int maxContentBytes
     ) {
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -50,9 +54,12 @@ public class McpBlockEventIngestService {
         this.blockMessageRepository = blockMessageRepository;
         this.ingestEventRepository = ingestEventRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.maxContentBytes = maxContentBytes;
     }
 
     public McpSessionBlockEventIngestResponse ingest(McpSessionBlockEventIngestRequest request) {
+        validateRequest(request);
+
         if (ingestEventRepository.existsIngestEvent(request.eventId())) {
             return buildDuplicateResponse(request);
         }
@@ -106,6 +113,24 @@ public class McpBlockEventIngestService {
 
         refreshSessionState(request.sessionId(), context.session(), now);
         return response;
+    }
+
+    private void validateRequest(McpSessionBlockEventIngestRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("request body is required");
+        }
+        requireText(request.sessionId(), "sessionId");
+        requireText(request.eventId(), "eventId");
+        requireText(request.messageId(), "messageId");
+        requireText(request.operation(), "operation");
+        if (request.targetBlock() == null) {
+            throw new IllegalArgumentException("targetBlock is required");
+        }
+        requireText(request.targetBlock().mcpBlockId(), "targetBlock.mcpBlockId");
+        String contentJson = toJsonContent(request.content());
+        if (contentJson.getBytes(StandardCharsets.UTF_8).length > maxContentBytes) {
+            throw new IllegalArgumentException("content exceeds maxContentBytes: " + maxContentBytes);
+        }
     }
 
     private McpSessionBlockEventIngestResponse handleCreateBlock(

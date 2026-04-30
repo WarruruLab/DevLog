@@ -60,7 +60,9 @@ class McpBlockIngestServiceTest {
             messageRepository,
             blockRepository,
             blockMessageRepository,
-            transactionManager
+            transactionManager,
+            500,
+            200
         );
     }
 
@@ -208,5 +210,41 @@ class McpBlockIngestServiceTest {
         assertThatThrownBy(() -> service.ingest(request))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("REPLACE mode");
+    }
+
+    @Test
+    void ingest_rejectsTooManyMessagesInBlock() {
+        service = new McpBlockIngestService(
+            sessionRepository,
+            messageRepository,
+            blockRepository,
+            blockMessageRepository,
+            transactionManager,
+            500,
+            1
+        );
+
+        McpSessionBlocksIngestRequest request = new McpSessionBlocksIngestRequest(
+            "session-1",
+            "v1",
+            "model-x",
+            "REPLACE",
+            List.of(
+                new McpBlockRequest(
+                    "blk-1",
+                    1,
+                    "problem",
+                    "block one",
+                    "summary one",
+                    List.of("m1", "m2"),
+                    0.9,
+                    Map.of()
+                )
+            )
+        );
+
+        assertThatThrownBy(() -> service.ingest(request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("maxMessagesPerBlock");
     }
 }
