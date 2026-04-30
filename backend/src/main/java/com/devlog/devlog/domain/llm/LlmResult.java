@@ -5,7 +5,7 @@ public sealed interface LlmResult permits LlmResult.Success, LlmResult.Failure {
     record Success(String text, LlmFinishReason finishReason, LlmTokenUsage tokenUsage) implements LlmResult {
         public Success {
             if (finishReason == null) finishReason = LlmFinishReason.UNKNOWN;
-            if (tokenUsage == null) LlmTokenUsage.empty();
+            if (tokenUsage == null) tokenUsage = LlmTokenUsage.empty();
         }
 
         public static Success of(String text, LlmFinishReason finishReason, LlmTokenUsage tokenUsage) {
